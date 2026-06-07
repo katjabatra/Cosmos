@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cosmos Queue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c26;
+      --accent: #b8ff57;
+      --accent2: #57c8ff;
+      --text: #f0f0f0;
+      --muted: #e8e8f0;
+      --border: rgba(255,255,255,0.07);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 24px 20px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: var(--accent);
+    }
+    .logo span { color: var(--muted); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ff4466;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .status-dot.live { background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    .status-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+    /* ── Not connected screen ── */
+    #not-connected {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    #not-connected h2 { font-size: 22px; margin-bottom: 10px; color: var(--muted); }
+
+    /* ── Now Playing ── */
+    #now-playing-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .now-playing-card {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+    .now-playing-art {
+      width: 64px; height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .now-playing-info { flex: 1; min-width: 0; }
+    .now-playing-name {
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .now-playing-artist {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .progress-bar {
+      margin-top: 10px;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+    .playing-icon {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .playing-icon span {
+      width: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: bar 1.2s ease-in-out infinite;
+    }
+    .playing-icon span:nth-child(1) { height: 8px; animation-delay: 0s; }
+    .playing-icon span:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+    .playing-icon span:nth-child(3) { height: 10px; animation-delay: 0.4s; }
+    .playing-icon span:nth-child(4) { height: 16px; animation-delay: 0.1s; }
+    @keyframes bar {
+      0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); }
+    }
+
+    /* ── Search ── */
+    #search-section { padding: 20px; border-bottom: 1px solid var(--border); }
+    .search-box {
+      display: flex;
+      gap: 10px;
+    }
+    #search-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: var(--muted); }
+    #search-btn {
+      background: var(--accent);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: opacity 0.15s;
+    }
+    #search-btn:hover { opacity: 0.85; }
+
+    #search-results { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .search-result-item:hover { border-color: var(--accent); background: var(--surface2); }
+    .search-thumb {
+      width: 44px; height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .search-info { flex: 1; min-width: 0; }
+    .search-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-artist { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .add-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .add-btn:hover { background: var(--accent); color: #0a0a0f; }
+    .add-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── Queue ── */
+    #queue-section { padding: 20px; }
+    #queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+    }
+    .queue-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      width: 18px;
+      flex-shrink: 0;
+    }
+    .queue-thumb {
+      width: 40px; height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .queue-info { flex: 1; min-width: 0; }
+    .queue-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .queue-artist { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--accent);
+      color: #0a0a0f;
+      padding: 12px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 99;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">COSMOS<span>/queue</span></div>
+  <div>
+    <span class="status-dot" id="status-dot"></span>
+    <span class="status-label" id="status-label">connecting...</span>
+  </div>
+</header>
+
+<div id="not-connected" style="display:none">
+  <h2>🎵 Waiting for the bar to connect Spotify...</h2>
+  <p style="color:var(--muted);margin-top:8px;font-size:14px">Ask the bartender to scan the QR code!</p>
+</div>
+
+<div id="main-content" style="display:none">
+
+  <section id="now-playing-section">
+    <div class="section-label">Now Playing</div>
+    <div id="now-playing-card">
+      <div class="empty-state">Nothing playing right now.</div>
+    </div>
+  </section>
+
+  <section id="search-section">
+    <div class="section-label">Add a Song</div>
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Search for a song or artist…"/>
+      <button id="search-btn">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </section>
+
+  <section id="queue-section">
+    <div class="section-label">Up Next</div>
+    <div id="queue-list"></div>
+  </section>
+
+</div>
+
+<div id="toast">✓ Added to queue!</div>
+
+<script>
+  const API = window.location.origin;
+
+  // ── Auth check ───────────────────────────────────────────────────────────
+  async function checkAuth() {
+    try {
+      const res = await fetch(`${API}/auth-status`);
+      const data = await res.json();
+      if (data.authenticated) {
+        document.getElementById("status-dot").classList.add("live");
+        document.getElementById("status-label").textContent = "live";
+        document.getElementById("not-connected").style.display = "none";
+        document.getElementById("main-content").style.display = "block";
+        loadQueue();
+      } else {
+        document.getElementById("status-label").textContent = "not connected";
+        document.getElementById("not-connected").style.display = "block";
+        document.getElementById("main-content").style.display = "none";
+      }
+    } catch (e) {
+      document.getElementById("status-label").textContent = "offline";
+    }
+  }
+
+  // ── Queue ────────────────────────────────────────────────────────────────
+  async function loadQueue() {
+    try {
+      const res = await fetch(`${API}/queue`);
+      const data = await res.json();
+      renderNowPlaying(data.now_playing);
+      renderQueue(data.queue);
+    } catch (e) {
+      console.error("Queue fetch failed", e);
+    }
+  }
+
+  function renderNowPlaying(track) {
+    const el = document.getElementById("now-playing-card");
+    if (!track) {
+      el.innerHTML = `<div class="empty-state">Nothing playing right now.</div>`;
+      return;
+    }
+    const pct = (track.progress_ms / track.duration_ms * 100).toFixed(1);
+    el.innerHTML = `
+      <div class="now-playing-card">
+        <img class="now-playing-art" src="${track.album_art || ''}" alt=""/>
+        <div class="now-playing-info">
+          <div class="now-playing-name">${track.name}</div>
+          <div class="now-playing-artist">${track.artist}</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="playing-icon">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      </div>`;
+  }
+
+  function renderQueue(queue) {
+    const el = document.getElementById("queue-list");
+    if (!queue.length) {
+      el.innerHTML = `<div class="empty-state">Queue is empty — add something! 🎶</div>`;
+      return;
+    }
+    el.innerHTML = queue.map((t, i) => `
+      <div class="queue-item">
+        <div class="queue-num">${i + 1}</div>
+        <img class="queue-thumb" src="${t.album_art || ''}" alt=""/>
+        <div class="queue-info">
+          <div class="queue-name">${t.name}</div>
+          <div class="queue-artist">${t.artist}</div>
+        </div>
+      </div>`).join("");
+  }
+
+  // ── Search ───────────────────────────────────────────────────────────────
+  async function searchTracks() {
+    const q = document.getElementById("search-input").value.trim();
+    if (!q) return;
+
+    const btn = document.getElementById("search-btn");
+    btn.textContent = "...";
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderSearchResults(data.tracks);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      btn.textContent = "Search";
+      btn.disabled = false;
+    }
+  }
+
+  function renderSearchResults(tracks) {
+    const el = document.getElementById("search-results");
+    if (!tracks.length) {
+      el.innerHTML = `<div class="empty-state">No results found.</div>`;
+      return;
+    }
+    el.innerHTML = tracks.map(t => `
+      <div class="search-result-item">
+        <img class="search-thumb" src="${t.album_art || ''}" alt=""/>
+        <div class="search-info">
+          <div class="search-name">${t.name}</div>
+          <div class="search-artist">${t.artist} · ${t.album}</div>
+        </div>
+        <button class="add-btn" onclick="addToQueue('${t.id}', this)">+ Add</button>
+      </div>`).join("");
+  }
+
+  async function addToQueue(trackId, btn) {
+    btn.disabled = true;
+    btn.textContent = "Adding...";
+    try {
+      const res = await fetch(`${API}/queue/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track_id: trackId })
+      });
+      if (res.ok) {
+        btn.textContent = "✓ Added";
+        showToast("Added to queue! 🎵");
+        setTimeout(loadQueue, 1000);
+      } else {
+        btn.textContent = "Error";
+        btn.disabled = false;
+      }
+    } catch (e) {
+      btn.textContent = "Error";
+      btn.disabled = false;
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+  }
+
+  // ── Event listeners ──────────────────────────────────────────────────────
+  document.getElementById("search-btn").addEventListener("click", searchTracks);
+  document.getElementById("search-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") searchTracks();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  checkAuth();
+  setInterval(loadQueue, 10000);   // refresh queue every 10s
+  setInterval(checkAuth, 30000);   // re-check connection every 30s
+</script>
+</body>
+</html>
