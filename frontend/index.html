@@ -571,8 +571,8 @@
       return;
     }
 
-    // Find max votes for bar scaling
-    maxQueueVotes = Math.max(1, ...queue.map(t => t.votes || 0));
+    // Always scale to max possible votes (3) so bar shows real progress
+    maxQueueVotes = 3;
 
     el.innerHTML = queue.map((t, i) => {
       const votes = t.votes || 0;
