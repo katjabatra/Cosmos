@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +10,7 @@ import os
 import json
 import sqlite3
 import time
+from datetime import date
 
 load_dotenv()
 
@@ -24,11 +25,6 @@ app.add_middleware(
 
 app.mount("/app", StaticFiles(directory="../frontend", html=True), name="frontend")
 
-# ── Token storage in SQLite ──────────────────────────────────────────────────
-# SQLite works on Railway as long as we don't need persistence across deploys.
-# For v1 this is fine — Costa just runs /login once after each deploy.
-# (v2 would use Postgres or Redis for true persistence)
-
 DB_PATH = "cosmos.db"
 
 def init_db():
@@ -38,6 +34,15 @@ def init_db():
             id INTEGER PRIMARY KEY,
             token_json TEXT NOT NULL,
             updated_at INTEGER NOT NULL
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS votes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip TEXT NOT NULL,
+            track_id TEXT NOT NULL,
+            vote_date TEXT NOT NULL,
+            created_at INTEGER NOT NULL
         )
     """)
     con.commit()
@@ -79,49 +84,45 @@ def get_spotify_oauth():
         client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
         redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
         scope=SCOPES,
-        cache_path=None,      # ← no file cache anymore
+        cache_path=None,
         open_browser=False,
     )
 
 def get_spotify_client():
-    """Returns an authenticated Spotipy client, or None if not logged in."""
     token_info = load_token()
     if not token_info:
         return None
-
     oauth = get_spotify_oauth()
-
-    # Refresh if expired
     if oauth.is_token_expired(token_info):
         token_info = oauth.refresh_access_token(token_info["refresh_token"])
-        save_token(token_info)  # save refreshed token back to DB
-
+        save_token(token_info)
     return spotipy.Spotify(auth=token_info["access_token"])
 
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host
 
 # ── Auth routes ──────────────────────────────────────────────────────────────
 
 @app.get("/login")
 def login():
-    """Redirect bar owner to Spotify login page."""
     oauth = get_spotify_oauth()
     auth_url = oauth.get_authorize_url()
     return RedirectResponse(auth_url)
 
-
 @app.get("/callback")
 def callback(code: str = Query(...)):
-    """Spotify redirects here after owner approves."""
     oauth = get_spotify_oauth()
     token_info = oauth.get_access_token(code, as_dict=True)
-    save_token(token_info)  # ← saved to DB, not file
+    save_token(token_info)
     return HTMLResponse("""
         <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#0a0a0f;color:white">
         <h2 style="color:#b8ff57">✅ Cosmos Queue connected to Spotify!</h2>
         <p style="color:#9999bb">You can close this tab. The queue is live!</p>
         </body></html>
     """)
-
 
 @app.get("/auth-status")
 def auth_status():
@@ -130,7 +131,6 @@ def auth_status():
         return {"authenticated": False}
     user = sp.current_user()
     return {"authenticated": True, "display_name": user["display_name"]}
-
 
 # ── Queue routes ─────────────────────────────────────────────────────────────
 
@@ -165,30 +165,34 @@ def get_queue():
         for t in queue_data.get("queue", [])[:10]
     ]
 
+    # Attach vote counts
+    vote_counts = get_vote_counts()
+    for song in queue:
+        song["votes"] = vote_counts.get(song["id"], 0)
+
+    # Sort queue by votes descending
+    queue.sort(key=lambda x: x["votes"], reverse=True)
+
     return {"now_playing": now_playing, "queue": queue}
 
 
 class AddSongRequest(BaseModel):
     track_id: str
 
-
 @app.post("/queue/add")
 def add_to_queue(body: AddSongRequest):
     sp = get_spotify_client()
     if not sp:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-
     track_uri = f"spotify:track:{body.track_id}"
     sp.add_to_queue(track_uri)
     return {"success": True, "message": "Song added to queue!"}
-
 
 @app.get("/search")
 def search_tracks(q: str = Query(..., min_length=2)):
     sp = get_spotify_client()
     if not sp:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-
     results = sp.search(q=q, type="track", limit=8)
     tracks = [
         {
@@ -202,3 +206,78 @@ def search_tracks(q: str = Query(..., min_length=2)):
         for t in results["tracks"]["items"]
     ]
     return {"tracks": tracks}
+
+# ── Voting routes ─────────────────────────────────────────────────────────────
+
+MAX_VOTES_PER_DAY = 3
+
+def get_vote_counts() -> dict:
+    """Returns {track_id: vote_count} for today."""
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    rows = con.execute(
+        "SELECT track_id, COUNT(*) FROM votes WHERE vote_date = ? GROUP BY track_id",
+        (today,)
+    ).fetchall()
+    con.close()
+    return {row[0]: row[1] for row in rows}
+
+def get_votes_used_today(ip: str) -> int:
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    count = con.execute(
+        "SELECT COUNT(*) FROM votes WHERE ip = ? AND vote_date = ?",
+        (ip, today)
+    ).fetchone()[0]
+    con.close()
+    return count
+
+def has_voted_for_track_today(ip: str, track_id: str) -> bool:
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    count = con.execute(
+        "SELECT COUNT(*) FROM votes WHERE ip = ? AND track_id = ? AND vote_date = ?",
+        (ip, track_id, today)
+    ).fetchone()[0]
+    con.close()
+    return count > 0
+
+@app.get("/votes/status")
+def votes_status(request: Request):
+    """How many votes does this IP have left today?"""
+    ip = get_client_ip(request)
+    used = get_votes_used_today(ip)
+    remaining = max(0, MAX_VOTES_PER_DAY - used)
+    vote_counts = get_vote_counts()
+    return {
+        "votes_remaining": remaining,
+        "votes_used": used,
+        "max_votes": MAX_VOTES_PER_DAY,
+        "vote_counts": vote_counts
+    }
+
+class VoteRequest(BaseModel):
+    track_id: str
+
+@app.post("/votes/cast")
+def cast_vote(body: VoteRequest, request: Request):
+    ip = get_client_ip(request)
+    today = str(date.today())
+
+    used = get_votes_used_today(ip)
+    if used >= MAX_VOTES_PER_DAY:
+        raise HTTPException(status_code=429, detail="No votes left for today")
+
+    if has_voted_for_track_today(ip, body.track_id):
+        raise HTTPException(status_code=409, detail="Already voted for this song today")
+
+    con = sqlite3.connect(DB_PATH)
+    con.execute(
+        "INSERT INTO votes (ip, track_id, vote_date, created_at) VALUES (?, ?, ?, ?)",
+        (ip, body.track_id, today, int(time.time()))
+    )
+    con.commit()
+    con.close()
+
+    remaining = MAX_VOTES_PER_DAY - used - 1
+    return {"success": True, "votes_remaining": remaining}

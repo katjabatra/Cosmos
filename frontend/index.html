@@ -13,8 +13,10 @@
       --accent: #b8ff57;
       --accent2: #57c8ff;
       --text: #f0f0f0;
-      --muted: #e8e8f0;
+      --muted: #9999bb;
       --border: rgba(255,255,255,0.07);
+      --vote-bar: #b8ff5730;
+      --vote-fill: #b8ff57;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,6 +55,44 @@
       0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
     }
     .status-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+    /* ── Votes Banner ── */
+    #votes-banner {
+      margin: 16px 20px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .votes-label {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+    .votes-pips {
+      display: flex;
+      gap: 6px;
+    }
+    .pip {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      background: transparent;
+      transition: background 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+    .pip.used {
+      background: var(--accent);
+      color: #0a0a0f;
+    }
 
     /* ── Not connected screen ── */
     #not-connected {
@@ -139,10 +179,7 @@
 
     /* ── Search ── */
     #search-section { padding: 20px; border-bottom: 1px solid var(--border); }
-    .search-box {
-      display: flex;
-      gap: 10px;
-    }
+    .search-box { display: flex; gap: 10px; }
     #search-input {
       flex: 1;
       background: var(--surface);
@@ -170,7 +207,6 @@
       transition: opacity 0.15s;
     }
     #search-btn:hover { opacity: 0.85; }
-
     #search-results { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 
     .search-result-item {
@@ -222,13 +258,19 @@
     #queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 
     .queue-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
       background: var(--surface);
       border-radius: 10px;
       padding: 10px 14px;
       border: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+    .queue-item.top-voted {
+      border-color: rgba(184, 255, 87, 0.3);
+    }
+    .queue-item-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     .queue-num {
       font-family: 'Space Mono', monospace;
@@ -254,6 +296,70 @@
     }
     .queue-artist { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
+    /* ── Vote button + bar ── */
+    .vote-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .vote-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .vote-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .vote-btn.voted {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(184,255,87,0.08);
+    }
+    .vote-btn:disabled { opacity: 0.35; cursor: default; }
+
+    /* Vote bar */
+    .vote-bar-wrap {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 30px; /* align with song name (skip num col) */
+    }
+    .vote-bar-track {
+      flex: 1;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .vote-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.5s ease;
+      min-width: 0;
+    }
+    .vote-count-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
     /* ── Toast ── */
     #toast {
       position: fixed;
@@ -271,6 +377,7 @@
       pointer-events: none;
     }
     #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #ff4466; color: white; }
 
     .empty-state {
       text-align: center;
@@ -296,6 +403,16 @@
 </div>
 
 <div id="main-content" style="display:none">
+
+  <!-- Votes banner -->
+  <div id="votes-banner">
+    <div class="votes-label">YOUR VOTES TODAY</div>
+    <div class="votes-pips" id="votes-pips">
+      <div class="pip" id="pip-1">⭐</div>
+      <div class="pip" id="pip-2">⭐</div>
+      <div class="pip" id="pip-3">⭐</div>
+    </div>
+  </div>
 
   <section id="now-playing-section">
     <div class="section-label">Now Playing</div>
@@ -323,7 +440,11 @@
 <div id="toast">✓ Added to queue!</div>
 
 <script>
-  const API = "http://localhost:8000";
+  const API = "";  // same origin — served by FastAPI
+
+  let votesRemaining = 3;
+  let votedTrackIds = new Set();
+  let maxQueueVotes = 1; // for scaling vote bars
 
   // ── Auth check ───────────────────────────────────────────────────────────
   async function checkAuth() {
@@ -335,6 +456,7 @@
         document.getElementById("status-label").textContent = "live";
         document.getElementById("not-connected").style.display = "none";
         document.getElementById("main-content").style.display = "block";
+        await loadVoteStatus();
         loadQueue();
       } else {
         document.getElementById("status-label").textContent = "not connected";
@@ -343,6 +465,67 @@
       }
     } catch (e) {
       document.getElementById("status-label").textContent = "offline";
+    }
+  }
+
+  // ── Votes ────────────────────────────────────────────────────────────────
+  async function loadVoteStatus() {
+    try {
+      const res = await fetch(`${API}/votes/status`);
+      const data = await res.json();
+      votesRemaining = data.votes_remaining;
+      renderVotePips(data.votes_used, data.max_votes);
+    } catch (e) {
+      console.error("Vote status failed", e);
+    }
+  }
+
+  function renderVotePips(used, max) {
+    for (let i = 1; i <= max; i++) {
+      const pip = document.getElementById(`pip-${i}`);
+      if (pip) {
+        if (i <= used) {
+          pip.classList.add("used");
+          pip.textContent = "✓";
+        } else {
+          pip.classList.remove("used");
+          pip.textContent = "⭐";
+        }
+      }
+    }
+  }
+
+  async function castVote(trackId) {
+    if (votesRemaining <= 0) {
+      showToast("Keine Stimmen mehr für heute! 🗳️", true);
+      return;
+    }
+    if (votedTrackIds.has(trackId)) {
+      showToast("Schon für diesen Song abgestimmt!", true);
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/votes/cast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track_id: trackId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        votesRemaining = data.votes_remaining;
+        votedTrackIds.add(trackId);
+        const used = 3 - votesRemaining;
+        renderVotePips(used, 3);
+        showToast(`Stimme abgegeben! Noch ${votesRemaining} übrig 🗳️`);
+        setTimeout(loadQueue, 600);
+      } else if (res.status === 429) {
+        showToast("Keine Stimmen mehr für heute!", true);
+      } else if (res.status === 409) {
+        showToast("Schon für diesen Song abgestimmt!", true);
+        votedTrackIds.add(trackId);
+      }
+    } catch (e) {
+      showToast("Fehler beim Abstimmen", true);
     }
   }
 
@@ -387,26 +570,53 @@
       el.innerHTML = `<div class="empty-state">Queue is empty — add something! 🎶</div>`;
       return;
     }
-    el.innerHTML = queue.map((t, i) => `
-      <div class="queue-item">
-        <div class="queue-num">${i + 1}</div>
-        <img class="queue-thumb" src="${t.album_art || ''}" alt=""/>
-        <div class="queue-info">
-          <div class="queue-name">${t.name}</div>
-          <div class="queue-artist">${t.artist}</div>
-        </div>
-      </div>`).join("");
+
+    // Find max votes for bar scaling
+    maxQueueVotes = Math.max(1, ...queue.map(t => t.votes || 0));
+
+    el.innerHTML = queue.map((t, i) => {
+      const votes = t.votes || 0;
+      const barPct = maxQueueVotes > 0 ? Math.round((votes / maxQueueVotes) * 100) : 0;
+      const alreadyVoted = votedTrackIds.has(t.id);
+      const noVotesLeft = votesRemaining <= 0;
+      const btnDisabled = alreadyVoted || noVotesLeft ? "disabled" : "";
+      const btnClass = alreadyVoted ? "vote-btn voted" : "vote-btn";
+      const btnText = alreadyVoted ? "✓ Voted" : `▲ Vote`;
+      const isTop = i === 0 && votes > 0;
+
+      return `
+        <div class="queue-item ${isTop ? 'top-voted' : ''}">
+          <div class="queue-item-top">
+            <div class="queue-num">${i + 1}</div>
+            <img class="queue-thumb" src="${t.album_art || ''}" alt=""/>
+            <div class="queue-info">
+              <div class="queue-name">${t.name}</div>
+              <div class="queue-artist">${t.artist}</div>
+            </div>
+            <div class="vote-col">
+              <button class="${btnClass}" onclick="castVote('${t.id}')" ${btnDisabled}>
+                ${btnText}
+              </button>
+            </div>
+          </div>
+          ${votes > 0 ? `
+          <div class="vote-bar-wrap">
+            <div class="vote-bar-track">
+              <div class="vote-bar-fill" style="width:${barPct}%"></div>
+            </div>
+            <div class="vote-count-label">${votes} vote${votes !== 1 ? 's' : ''}</div>
+          </div>` : ''}
+        </div>`;
+    }).join("");
   }
 
   // ── Search ───────────────────────────────────────────────────────────────
   async function searchTracks() {
     const q = document.getElementById("search-input").value.trim();
     if (!q) return;
-
     const btn = document.getElementById("search-btn");
     btn.textContent = "...";
     btn.disabled = true;
-
     try {
       const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
@@ -459,9 +669,10 @@
     }
   }
 
-  function showToast(msg) {
+  function showToast(msg, isError = false) {
     const t = document.getElementById("toast");
     t.textContent = msg;
+    t.classList.toggle("error", isError);
     t.classList.add("show");
     setTimeout(() => t.classList.remove("show"), 2500);
   }
@@ -474,8 +685,9 @@
 
   // ── Init ─────────────────────────────────────────────────────────────────
   checkAuth();
-  setInterval(loadQueue, 10000);   // refresh queue every 10s
-  setInterval(checkAuth, 30000);   // re-check connection every 30s
+  setInterval(loadQueue, 10000);
+  setInterval(checkAuth, 30000);
+  setInterval(loadVoteStatus, 15000);
 </script>
 </body>
 </html>
