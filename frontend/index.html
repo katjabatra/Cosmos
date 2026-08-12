@@ -324,6 +324,7 @@
             <div class="queue-artist">${t.artist}</div>
           </div>
           <div class="vote-col">
+            <button class="add-btn" onclick="addToQueue('${t.id}', this)" style="margin-bottom:4px">+ Add</button>
             <button class="${btnClass}" onclick="castVote('${t.id}')" ${btnDisabled}>
               ${alreadyVoted ? '✓ Voted' : '▲ Vote'}
             </button>
@@ -390,7 +391,6 @@
   }
 
   function renderGenreResults(tracks) {
-    // Show results in genre screen
     let resultsEl = document.getElementById("genre-results");
     if (!resultsEl) {
       resultsEl = document.createElement("div");
@@ -398,15 +398,23 @@
       resultsEl.style.cssText = "width:100%;max-width:360px;margin-top:20px;display:flex;flex-direction:column;gap:8px;";
       document.getElementById("genre-screen").appendChild(resultsEl);
     }
-    resultsEl.innerHTML = tracks.map(t => `
-      <div class="search-result-item">
-        <img class="search-thumb" src="${t.album_art||""}" alt=""/>
+    resultsEl.innerHTML = "";
+    tracks.forEach(t => {
+      const div = document.createElement("div");
+      div.className = "search-result-item";
+      div.innerHTML = `
+        <img class="search-thumb" src="${t.album_art||''}" alt=""/>
         <div class="search-info">
           <div class="search-name">${t.name}</div>
           <div class="search-artist">${t.artist}</div>
-        </div>
-        <button class="add-btn" onclick="addToQueue('${t.id}', this)">+ Add</button>
-      </div>`).join("");
+        </div>`;
+      const btn = document.createElement("button");
+      btn.className = "add-btn";
+      btn.textContent = "+ Add";
+      btn.onclick = () => addToQueue(t.id, btn);
+      div.appendChild(btn);
+      resultsEl.appendChild(div);
+    });
   }
 
   function showToast(msg, isError=false) {
