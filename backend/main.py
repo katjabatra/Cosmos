@@ -194,7 +194,7 @@ def search_tracks(q: str = Query(..., min_length=2)):
     sp = get_spotify_client()
     if not sp:
         raise HTTPException(status_code=401, detail="Spotify not connected")
-    results = sp.search(q=q, type="track", limit=8)
+    results = sp.search(q=q, type="track", limit=20)
     tracks = [
         {
             "id": t["id"],

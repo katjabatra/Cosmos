@@ -382,17 +382,31 @@
       const res = await fetch(`${API}/search?q=${encodeURIComponent(genre)}`);
       const data = await res.json();
       if (data.tracks && data.tracks.length > 0) {
-        const pick = data.tracks[Math.floor(Math.random() * data.tracks.length)];
-        const addRes = await fetch(`${API}/queue/add`, {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({track_id: pick.id})
-        });
-        if (addRes.ok) {
-          showToast(`"${pick.name}" hinzugefügt! 🎵`);
-          setTimeout(() => showScreen("queue"), 1800);
-        }
+        renderGenreResults(data.tracks);
+      } else {
+        showToast("Keine Songs gefunden", true);
       }
     } catch(e) { showToast("Fehler beim Suchen", true); }
+  }
+
+  function renderGenreResults(tracks) {
+    // Show results in genre screen
+    let resultsEl = document.getElementById("genre-results");
+    if (!resultsEl) {
+      resultsEl = document.createElement("div");
+      resultsEl.id = "genre-results";
+      resultsEl.style.cssText = "width:100%;max-width:360px;margin-top:20px;display:flex;flex-direction:column;gap:8px;";
+      document.getElementById("genre-screen").appendChild(resultsEl);
+    }
+    resultsEl.innerHTML = tracks.map(t => `
+      <div class="search-result-item">
+        <img class="search-thumb" src="${t.album_art||""}" alt=""/>
+        <div class="search-info">
+          <div class="search-name">${t.name}</div>
+          <div class="search-artist">${t.artist}</div>
+        </div>
+        <button class="add-btn" onclick="addToQueue('${t.id}', this)">+ Add</button>
+      </div>`).join("");
   }
 
   function showToast(msg, isError=false) {
