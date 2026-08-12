@@ -165,13 +165,14 @@ def get_queue():
         for t in queue_data.get("queue", [])[:10]
     ]
 
-    # Attach vote counts
+    # Attach vote counts and original position
     vote_counts = get_vote_counts()
-    for song in queue:
+    for i, song in enumerate(queue):
         song["votes"] = vote_counts.get(song["id"], 0)
+        song["original_position"] = i  # preserve Spotify queue order
 
-    # Sort queue by votes descending
-    queue.sort(key=lambda x: x["votes"], reverse=True)
+    # Sort: primary = votes descending, secondary = original position ascending (FIFO on tie)
+    queue.sort(key=lambda x: (-x["votes"], x["original_position"]))
 
     return {"now_playing": now_playing, "queue": queue}
 
