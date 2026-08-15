@@ -8,7 +8,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import json
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import time
 from datetime import date
 
@@ -25,32 +26,31 @@ app.add_middleware(
 
 app.mount("/app", StaticFiles(directory="../frontend", html=True), name="frontend")
 
-DB_PATH = "cosmos.db"
+def get_db():
+    return psycopg2.connect(os.getenv("DATABASE_URL"), sslmode="require")
 
 def init_db():
-    con = sqlite3.connect(DB_PATH)
-    # Tabelle 1: Spotify Token speichern
-    con.execute("""
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS tokens (
             id INTEGER PRIMARY KEY,
             token_json TEXT NOT NULL,
             updated_at INTEGER NOT NULL
         )
     """)
-    # Tabelle 2: Votes speichern (wer hat welchen Song gevoted)
-    con.execute("""
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS votes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             ip TEXT NOT NULL,
             track_id TEXT NOT NULL,
             vote_date TEXT NOT NULL,
             created_at INTEGER NOT NULL
         )
     """)
-    # NEU Tabelle 3: Zählt wie oft ein Song zur Queue hinzugefügt wurde (für All Time Favorite)
-    con.execute("""
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS song_plays (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             track_id TEXT NOT NULL,
             track_name TEXT NOT NULL,
             track_artist TEXT NOT NULL,
@@ -58,19 +58,17 @@ def init_db():
             created_at INTEGER NOT NULL
         )
     """)
-    # NEU Tabelle 4: Zählt Genre-Klicks (für Genre-Treppchen)
-    con.execute("""
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS genre_clicks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             genre TEXT NOT NULL,
             click_date TEXT NOT NULL,
             created_at INTEGER NOT NULL
         )
     """)
-    # NEU Tabelle 5: Wie viele Songs hat eine IP heute hinzugefügt (3-Song-Limit)
-    con.execute("""
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS add_limits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             ip TEXT NOT NULL,
             track_id TEXT NOT NULL,
             add_date TEXT NOT NULL,
@@ -78,29 +76,36 @@ def init_db():
         )
     """)
     con.commit()
+    cur.close()
     con.close()
 
 init_db()
 
 def save_token(token_info: dict):
-    con = sqlite3.connect(DB_PATH)
-    existing = con.execute("SELECT id FROM tokens WHERE id = 1").fetchone()
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT id FROM tokens WHERE id = 1")
+    existing = cur.fetchone()
     if existing:
-        con.execute(
-            "UPDATE tokens SET token_json = ?, updated_at = ? WHERE id = 1",
+        cur.execute(
+            "UPDATE tokens SET token_json = %s, updated_at = %s WHERE id = 1",
             (json.dumps(token_info), int(time.time()))
         )
     else:
-        con.execute(
-            "INSERT INTO tokens (id, token_json, updated_at) VALUES (1, ?, ?)",
+        cur.execute(
+            "INSERT INTO tokens (id, token_json, updated_at) VALUES (1, %s, %s)",
             (json.dumps(token_info), int(time.time()))
         )
     con.commit()
+    cur.close()
     con.close()
 
 def load_token() -> dict | None:
-    con = sqlite3.connect(DB_PATH)
-    row = con.execute("SELECT token_json FROM tokens WHERE id = 1").fetchone()
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT token_json FROM tokens WHERE id = 1")
+    row = cur.fetchone()
+    cur.close()
     con.close()
     if row:
         return json.loads(row[0])
@@ -217,11 +222,11 @@ class AddSongRequest(BaseModel):
 # NEU: Prüft wie viele Songs eine IP heute schon hinzugefügt hat
 def get_adds_today(ip: str) -> int:
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    count = con.execute(
-        "SELECT COUNT(*) FROM add_limits WHERE ip = ? AND add_date = ?",
-        (ip, today)
-    ).fetchone()[0]
+    con = get_db()
+    count = cur = con.cursor()
+    cur.execute("SELECT COUNT(*) FROM add_limits WHERE ip = %s AND add_date = %s", (ip, today))
+    count = cur.fetchone()[0]
+    cur.close()
     con.close()
     return count
 
@@ -245,17 +250,18 @@ def add_to_queue(body: AddSongRequest, request: Request):
     today = str(date.today())
 
     # NEU: Add-Limit tracken
-    con = sqlite3.connect(DB_PATH)
-    con.execute(
-        "INSERT INTO add_limits (ip, track_id, add_date, created_at) VALUES (?, ?, ?, ?)",
+    con = get_db()
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO add_limits (ip, track_id, add_date, created_at) VALUES (%s, %s, %s, %s)",
         (ip, body.track_id, today, int(time.time()))
     )
-    # NEU: Song-Play tracken (für All Time Favorite)
-    con.execute(
-        "INSERT INTO song_plays (track_id, track_name, track_artist, play_date, created_at) VALUES (?, ?, ?, ?, ?)",
+    cur.execute(
+        "INSERT INTO song_plays (track_id, track_name, track_artist, play_date, created_at) VALUES (%s, %s, %s, %s, %s)",
         (body.track_id, body.track_name, body.track_artist, today, int(time.time()))
     )
     con.commit()
+    cur.close()
     con.close()
 
     remaining_adds = MAX_ADDS_PER_DAY - adds_today - 1
@@ -286,15 +292,18 @@ def search_tracks(q: str = Query(..., min_length=2)):
 @app.get("/stats/top-song")
 def get_top_song():
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    row = con.execute("""
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("""
         SELECT track_id, track_name, track_artist, COUNT(*) as cnt
         FROM song_plays
-        WHERE play_date = ?
+        WHERE play_date = %s
         GROUP BY track_id
         ORDER BY cnt DESC
         LIMIT 1
-    """, (today,)).fetchone()
+    """, (today,))
+    row = cur.fetchone()
+    cur.close()
     con.close()
     if not row:
         return {"top_song": None}
@@ -307,12 +316,14 @@ class GenreClickRequest(BaseModel):
 @app.post("/genre/click")
 def genre_click(body: GenreClickRequest):
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    con.execute(
-        "INSERT INTO genre_clicks (genre, click_date, created_at) VALUES (?, ?, ?)",
+    con = get_db()
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO genre_clicks (genre, click_date, created_at) VALUES (%s, %s, %s)",
         (body.genre, today, int(time.time()))
     )
     con.commit()
+    cur.close()
     con.close()
     return {"success": True}
 
@@ -320,15 +331,18 @@ def genre_click(body: GenreClickRequest):
 @app.get("/stats/top-genres")
 def get_top_genres():
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    rows = con.execute("""
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("""
         SELECT genre, COUNT(*) as cnt
         FROM genre_clicks
-        WHERE click_date = ?
+        WHERE click_date = %s
         GROUP BY genre
         ORDER BY cnt DESC
         LIMIT 3
-    """, (today,)).fetchall()
+    """, (today,))
+    rows = cur.fetchall()
+    cur.close()
     con.close()
     return {"top_genres": [{"genre": r[0], "count": r[1]} for r in rows]}
 
@@ -346,31 +360,31 @@ MAX_VOTES_PER_DAY = 3
 
 def get_vote_counts() -> dict:
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    rows = con.execute(
-        "SELECT track_id, COUNT(*) FROM votes WHERE vote_date = ? GROUP BY track_id",
-        (today,)
-    ).fetchall()
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT track_id, COUNT(*) FROM votes WHERE vote_date = %s GROUP BY track_id", (today,))
+    rows = cur.fetchall()
+    cur.close()
     con.close()
     return {row[0]: row[1] for row in rows}
 
 def get_votes_used_today(ip: str) -> int:
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    count = con.execute(
-        "SELECT COUNT(*) FROM votes WHERE ip = ? AND vote_date = ?",
-        (ip, today)
-    ).fetchone()[0]
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT COUNT(*) FROM votes WHERE ip = %s AND vote_date = %s", (ip, today))
+    count = cur.fetchone()[0]
+    cur.close()
     con.close()
     return count
 
 def has_voted_for_track_today(ip: str, track_id: str) -> bool:
     today = str(date.today())
-    con = sqlite3.connect(DB_PATH)
-    count = con.execute(
-        "SELECT COUNT(*) FROM votes WHERE ip = ? AND track_id = ? AND vote_date = ?",
-        (ip, track_id, today)
-    ).fetchone()[0]
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT COUNT(*) FROM votes WHERE ip = %s AND track_id = %s AND vote_date = %s", (ip, track_id, today))
+    count = cur.fetchone()[0]
+    cur.close()
     con.close()
     return count > 0
 
@@ -402,12 +416,14 @@ def cast_vote(body: VoteRequest, request: Request):
     if has_voted_for_track_today(ip, body.track_id):
         raise HTTPException(status_code=409, detail="Already voted for this song today")
 
-    con = sqlite3.connect(DB_PATH)
-    con.execute(
-        "INSERT INTO votes (ip, track_id, vote_date, created_at) VALUES (?, ?, ?, ?)",
+    con = get_db()
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO votes (ip, track_id, vote_date, created_at) VALUES (%s, %s, %s, %s)",
         (ip, body.track_id, today, int(time.time()))
     )
     con.commit()
+    cur.close()
     con.close()
 
     remaining = MAX_VOTES_PER_DAY - used - 1
