@@ -28,12 +28,18 @@
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .status-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
 
-    /* NOT CONNECTED / GPS BLOCKED */
+    /* NOT CONNECTED / CODE SCREEN */
     #not-connected { text-align: center; padding: 80px 20px; }
     #not-connected h2 { font-size: 20px; margin-bottom: 10px; color: var(--muted); }
-    #gps-blocked { display: none; text-align: center; padding: 80px 20px; }
-    #gps-blocked h2 { font-size: 20px; margin-bottom: 10px; color: #ff4466; }
-    #gps-blocked p { color: var(--muted); font-size: 14px; margin-top: 8px; line-height: 1.5; }
+    #code-screen { display: none; flex-direction: column; align-items: center; padding: 60px 24px; gap: 16px; }
+    #code-screen h2 { font-size: 22px; font-weight: 600; text-align: center; }
+    #code-screen p { font-size: 13px; color: var(--muted); text-align: center; }
+    #code-input { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 16px 18px; color: var(--text); font-size: 20px; font-family: 'Space Mono', monospace; outline: none; text-align: center; letter-spacing: 4px; width: 100%; max-width: 280px; text-transform: uppercase; transition: border-color 0.2s; }
+    #code-input:focus { border-color: var(--accent); }
+    #code-input::placeholder { font-size: 14px; letter-spacing: 1px; color: var(--muted); text-transform: none; }
+    #code-btn { background: var(--accent); color: #0d0a14; border: none; border-radius: 14px; padding: 16px 32px; font-weight: 700; font-size: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; width: 100%; max-width: 280px; transition: opacity 0.15s; }
+    #code-btn:hover { opacity: 0.85; }
+    #code-error { color: #ff4466; font-size: 13px; display: none; }
 
     /* START SCREEN */
     #start-screen { display: none; flex-direction: column; align-items: center; padding: 40px 24px 60px; }
@@ -166,15 +172,19 @@
   </div>
 </header>
 
-<!-- GPS zu weit weg -->
-<div id="gps-blocked">
-  <h2>📍 Du bist nicht im Cosmos!</h2>
-  <p>Die Cosmos Jukebox funktioniert nur vor Ort.<br/>Komm vorbei in der Otto-Wels-Straße 4, Hannover! 🍺</p>
-</div>
-
 <div id="not-connected" style="display:none">
   <h2>🎵 Warte auf Spotify-Verbindung...</h2>
   <p style="color:var(--muted);margin-top:8px;font-size:14px">Bitte den Barkeeper ansprechen!</p>
+</div>
+
+<!-- CODE EINGABE -->
+<div id="code-screen">
+  <div style="font-size:48px">🎵</div>
+  <h2>Willkommen im<br/><span style="color:var(--accent)">Cosmos Jukebox!</span></h2>
+  <p>Gib den Code ein der an der Bar steht</p>
+  <input type="text" id="code-input" placeholder="Code eingeben..." maxlength="20"/>
+  <p id="code-error">❌ Falscher Code — frag an der Bar!</p>
+  <button id="code-btn" onclick="checkCode()">Weiter</button>
 </div>
 
 <!-- START -->
@@ -268,59 +278,30 @@
 
 <script>
   const API = "";
-  // Cosmos Koordinaten: Otto-Wels-Straße 4, 30451 Hannover
-  const COSMOS_LAT = 52.3731;
-  const COSMOS_LNG = 9.7079;
-  const MAX_DISTANCE_M = 200; // 200 Meter Radius
-
   let votesRemaining = 3;
   let addsRemaining = 3;
   let votedTrackIds = new Set();
   let currentScreen = "start";
-  let gpsChecked = false;
 
-  // ── GPS Distanz berechnen (Haversine Formel) ─────────────────────────────
-  function calcDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371000; // Erdradius in Metern
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  // ── Code Check ───────────────────────────────────────────────────────────
+  const SECRET_CODE = "COSMOS";
+
+  function checkCode() {
+    const input = document.getElementById("code-input").value.trim().toUpperCase();
+    const errorEl = document.getElementById("code-error");
+    if (input === SECRET_CODE) {
+      sessionStorage.setItem("cosmos_access", "true");
+      errorEl.style.display = "none";
+      document.getElementById("code-screen").style.display = "none";
+      showScreen("start");
+    } else {
+      errorEl.style.display = "block";
+      document.getElementById("code-input").value = "";
+    }
   }
 
-  // ── GPS Check: Ist der Gast im Cosmos? ───────────────────────────────────
-  function checkGPS(onSuccess) {
-    if (gpsChecked) { onSuccess(); return; }
-    if (!navigator.geolocation) {
-      // Kein GPS verfügbar → trotzdem erlauben
-      gpsChecked = true;
-      onSuccess();
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const dist = calcDistance(pos.coords.latitude, pos.coords.longitude, COSMOS_LAT, COSMOS_LNG);
-        gpsChecked = true;
-        if (dist <= MAX_DISTANCE_M) {
-          onSuccess();
-        } else {
-          // Zu weit weg → GPS-Blocked Screen zeigen
-          document.getElementById("gps-blocked").style.display = "block";
-          document.getElementById("not-connected").style.display = "none";
-          ["start-screen","queue-screen","genre-screen"].forEach(id =>
-            document.getElementById(id).style.display = "none"
-          );
-        }
-      },
-      () => {
-        // GPS abgelehnt oder Fehler → trotzdem erlauben
-        gpsChecked = true;
-        onSuccess();
-      },
-      { timeout: 5000 }
-    );
+  function hasAccess() {
+    return sessionStorage.getItem("cosmos_access") === "true";
   }
 
   // ── Screen Navigation ────────────────────────────────────────────────────
@@ -350,10 +331,15 @@
         document.getElementById("status-dot").classList.add("live");
         document.getElementById("status-label").textContent = "live";
         document.getElementById("not-connected").style.display = "none";
-        // GPS prüfen bevor App gezeigt wird
-        checkGPS(() => {
-          if (currentScreen === "start") showScreen("start");
-        });
+        // Code-Check: hat der Gast den Code eingegeben?
+        if (!hasAccess()) {
+          document.getElementById("code-screen").style.display = "flex";
+          ["start-screen","queue-screen","genre-screen"].forEach(id =>
+            document.getElementById(id).style.display = "none"
+          );
+        } else if (currentScreen === "start") {
+          showScreen("start");
+        }
         await loadVoteStatus();
         await loadAddsStatus();
       } else {
@@ -647,6 +633,11 @@
   document.getElementById("search-input").addEventListener("keydown", e => { if (e.key==="Enter") searchTracks(); });
   document.getElementById("search-input").addEventListener("input", e => {
     if (!e.target.value.trim()) document.getElementById("search-results").innerHTML = "";
+  });
+
+  // Enter-Taste im Code-Feld
+  document.getElementById("code-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") checkCode();
   });
 
   checkAuth();
