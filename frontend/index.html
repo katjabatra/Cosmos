@@ -28,11 +28,15 @@
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .status-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
 
+    /* NOT CONNECTED / GPS BLOCKED */
     #not-connected { text-align: center; padding: 80px 20px; }
     #not-connected h2 { font-size: 20px; margin-bottom: 10px; color: var(--muted); }
+    #gps-blocked { display: none; text-align: center; padding: 80px 20px; }
+    #gps-blocked h2 { font-size: 20px; margin-bottom: 10px; color: #ff4466; }
+    #gps-blocked p { color: var(--muted); font-size: 14px; margin-top: 8px; line-height: 1.5; }
 
     /* START SCREEN */
-    #start-screen { display: none; flex-direction: column; align-items: center; padding: 40px 24px 60px; gap: 0; }
+    #start-screen { display: none; flex-direction: column; align-items: center; padding: 40px 24px 60px; }
     .start-title { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
     .start-subtitle { font-size: 24px; font-weight: 600; text-align: center; line-height: 1.3; margin-bottom: 36px; }
     .start-subtitle span { color: var(--accent); }
@@ -49,11 +53,23 @@
     .back-btn { display: inline-flex; align-items: center; gap: 6px; margin: 16px 20px 0; background: none; border: none; color: var(--muted); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; padding: 6px 0; }
     .back-btn:hover { color: var(--accent); }
 
+    /* Votes Banner - jetzt "DEINE VOTES HEUTE" */
     #votes-banner { margin: 14px 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .votes-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; letter-spacing: 1px; }
     .votes-pips { display: flex; gap: 6px; }
     .pip { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--accent); background: transparent; transition: background 0.3s; display: flex; align-items: center; justify-content: center; font-size: 13px; }
     .pip.used { background: var(--accent); color: #0d0a14; }
+
+    /* All Time Favorite Banner */
+    #top-song-banner { margin: 10px 20px 0; background: linear-gradient(135deg, #1a1425, #241a33); border: 1px solid rgba(201,126,245,0.25); border-radius: 12px; padding: 12px 16px; display: none; }
+    .top-song-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+    .top-song-info { font-size: 13px; font-weight: 600; }
+    .top-song-artist { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Add-Limit Banner */
+    #add-limit-banner { margin: 10px 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .add-limit-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; letter-spacing: 1px; }
+    .add-limit-count { font-size: 18px; }
 
     #now-playing-section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
     .section-label { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
@@ -91,10 +107,15 @@
     .add-btn:hover { background: var(--accent); color: #0d0a14; }
     .add-btn:disabled { opacity: 0.4; cursor: default; }
 
+    /* Queue items — Song #1 ist größer */
     #queue-section { padding: 18px 20px; }
     #queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-    .queue-item { background: var(--surface); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--border); transition: border-color 0.2s; }
-    .queue-item.top-voted { border-color: rgba(201,126,245,0.35); }
+    .queue-item { background: var(--surface); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--border); transition: border-color 0.2s, transform 0.2s; }
+    .queue-item.rank-1 { border-color: rgba(201,126,245,0.4); transform: scale(1.02); padding: 14px 16px; }
+    .queue-item.rank-2 { transform: scale(1.01); }
+    .queue-item.rank-1 .queue-num { font-size: 16px; color: var(--accent); }
+    .queue-item.rank-1 .queue-name { font-size: 16px; }
+    .queue-item.rank-1 .queue-thumb { width: 52px; height: 52px; }
     .queue-item-top { display: flex; align-items: center; gap: 12px; }
     .queue-num { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); width: 18px; flex-shrink: 0; }
     .queue-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
@@ -106,10 +127,8 @@
     .vote-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
     .vote-btn.voted { border-color: var(--accent); color: var(--accent); background: rgba(201,126,245,0.08); }
     .vote-btn:disabled { opacity: 0.35; cursor: default; }
-    .vote-bar-wrap { margin-top: 8px; display: flex; align-items: center; gap: 8px; padding-left: 30px; }
-    .vote-bar-track { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-    .vote-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s ease; }
-    .vote-count-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); white-space: nowrap; }
+    /* Flammen statt Balken */
+    .vote-flames { margin-top: 6px; padding-left: 30px; font-size: 16px; letter-spacing: 2px; }
 
     /* GENRE SCREEN */
     #genre-screen { display: none; flex-direction: column; align-items: center; padding: 20px 20px 60px; }
@@ -120,6 +139,16 @@
     .genre-btn:hover { border-color: var(--accent); background: var(--surface2); box-shadow: 0 0 16px var(--accent-glow); }
     .genre-icon { font-size: 28px; }
     .genre-label { font-size: 12px; font-weight: 600; text-align: center; }
+
+    /* Genre Treppchen (Top 3) */
+    #genre-podium { margin-top: 28px; width: 100%; max-width: 360px; }
+    .podium-title { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; text-align: center; }
+    .podium-bars { display: flex; align-items: flex-end; justify-content: center; gap: 8px; height: 80px; }
+    .podium-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
+    .podium-block { width: 80px; border-radius: 8px 8px 0 0; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--muted); }
+    .podium-block.rank-1 { background: rgba(201,126,245,0.2); border-color: var(--accent); color: var(--accent); }
+    .podium-block.rank-2 { background: rgba(201,126,245,0.1); border-color: rgba(201,126,245,0.3); }
+    .podium-label { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
 
     #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #0d0a14; padding: 12px 24px; border-radius: 40px; font-weight: 600; font-size: 14px; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 99; pointer-events: none; }
     #toast.show { transform: translateX(-50%) translateY(0); }
@@ -136,6 +165,12 @@
     <span class="status-label" id="status-label">verbinde...</span>
   </div>
 </header>
+
+<!-- GPS zu weit weg -->
+<div id="gps-blocked">
+  <h2>📍 Du bist nicht im Cosmos!</h2>
+  <p>Die Cosmos Jukebox funktioniert nur vor Ort.<br/>Komm vorbei in der Otto-Wels-Straße 4, Hannover! 🍺</p>
+</div>
 
 <div id="not-connected" style="display:none">
   <h2>🎵 Warte auf Spotify-Verbindung...</h2>
@@ -163,14 +198,30 @@
 <!-- QUEUE -->
 <div id="queue-screen">
   <button class="back-btn" onclick="showScreen('start')">← Zurück</button>
+
+  <!-- "DEINE VOTES HEUTE" (vorher: DEINE STIMMEN HEUTE) -->
   <div id="votes-banner">
-    <div class="votes-label">DEINE STIMMEN HEUTE</div>
+    <div class="votes-label">DEINE VOTES HEUTE</div>
     <div class="votes-pips" id="votes-pips">
       <div class="pip" id="pip-1">⭐</div>
       <div class="pip" id="pip-2">⭐</div>
       <div class="pip" id="pip-3">⭐</div>
     </div>
   </div>
+
+  <!-- Add-Limit: wie viele Songs darf man noch hinzufügen -->
+  <div id="add-limit-banner">
+    <div class="add-limit-label">SONGS HEUTE NOCH</div>
+    <div class="add-limit-count" id="add-limit-count">🎵🎵🎵</div>
+  </div>
+
+  <!-- All Time Favorite des Tages -->
+  <div id="top-song-banner">
+    <div class="top-song-label">⭐ Tages-Favorit</div>
+    <div class="top-song-info" id="top-song-name">—</div>
+    <div class="top-song-artist" id="top-song-artist"></div>
+  </div>
+
   <section id="now-playing-section">
     <div class="section-label">Läuft gerade</div>
     <div id="now-playing-card"><div class="empty-state">Gerade läuft nichts.</div></div>
@@ -205,26 +256,92 @@
     <button class="genre-btn" onclick="searchGenre('Latin')"><span class="genre-icon">💃</span><span class="genre-label">Latin</span></button>
     <button class="genre-btn" onclick="searchGenre('80s Hits')"><span class="genre-icon">📼</span><span class="genre-label">80er</span></button>
   </div>
+
+  <!-- Genre Treppchen Platz 1-3 -->
+  <div id="genre-podium" style="display:none">
+    <div class="podium-title">🏆 Heute beliebt</div>
+    <div class="podium-bars" id="podium-bars"></div>
+  </div>
 </div>
 
 <div id="toast">✓ Hinzugefügt!</div>
 
 <script>
   const API = "";
+  // Cosmos Koordinaten: Otto-Wels-Straße 4, 30451 Hannover
+  const COSMOS_LAT = 52.3731;
+  const COSMOS_LNG = 9.7079;
+  const MAX_DISTANCE_M = 200; // 200 Meter Radius
+
   let votesRemaining = 3;
+  let addsRemaining = 3;
   let votedTrackIds = new Set();
   let currentScreen = "start";
+  let gpsChecked = false;
 
+  // ── GPS Distanz berechnen (Haversine Formel) ─────────────────────────────
+  function calcDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // Erdradius in Metern
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  // ── GPS Check: Ist der Gast im Cosmos? ───────────────────────────────────
+  function checkGPS(onSuccess) {
+    if (gpsChecked) { onSuccess(); return; }
+    if (!navigator.geolocation) {
+      // Kein GPS verfügbar → trotzdem erlauben
+      gpsChecked = true;
+      onSuccess();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = calcDistance(pos.coords.latitude, pos.coords.longitude, COSMOS_LAT, COSMOS_LNG);
+        gpsChecked = true;
+        if (dist <= MAX_DISTANCE_M) {
+          onSuccess();
+        } else {
+          // Zu weit weg → GPS-Blocked Screen zeigen
+          document.getElementById("gps-blocked").style.display = "block";
+          document.getElementById("not-connected").style.display = "none";
+          ["start-screen","queue-screen","genre-screen"].forEach(id =>
+            document.getElementById(id).style.display = "none"
+          );
+        }
+      },
+      () => {
+        // GPS abgelehnt oder Fehler → trotzdem erlauben
+        gpsChecked = true;
+        onSuccess();
+      },
+      { timeout: 5000 }
+    );
+  }
+
+  // ── Screen Navigation ────────────────────────────────────────────────────
   function showScreen(name) {
-    ["start-screen","queue-screen","genre-screen"].forEach(id => {
-      document.getElementById(id).style.display = "none";
-    });
+    ["start-screen","queue-screen","genre-screen"].forEach(id =>
+      document.getElementById(id).style.display = "none"
+    );
     if (name === "start") document.getElementById("start-screen").style.display = "flex";
-    else if (name === "queue") { document.getElementById("queue-screen").style.display = "block"; loadQueue(); }
-    else if (name === "genre") document.getElementById("genre-screen").style.display = "flex";
+    else if (name === "queue") {
+      document.getElementById("queue-screen").style.display = "block";
+      loadQueue();
+      loadStats();
+    }
+    else if (name === "genre") {
+      document.getElementById("genre-screen").style.display = "flex";
+      loadTopGenres();
+    }
     currentScreen = name;
   }
 
+  // ── Auth check ───────────────────────────────────────────────────────────
   async function checkAuth() {
     try {
       const res = await fetch(`${API}/auth-status`);
@@ -233,16 +350,23 @@
         document.getElementById("status-dot").classList.add("live");
         document.getElementById("status-label").textContent = "live";
         document.getElementById("not-connected").style.display = "none";
-        if (currentScreen === "start") showScreen("start");
+        // GPS prüfen bevor App gezeigt wird
+        checkGPS(() => {
+          if (currentScreen === "start") showScreen("start");
+        });
         await loadVoteStatus();
+        await loadAddsStatus();
       } else {
         document.getElementById("status-label").textContent = "nicht verbunden";
         document.getElementById("not-connected").style.display = "block";
-        ["start-screen","queue-screen","genre-screen"].forEach(id => document.getElementById(id).style.display = "none");
+        ["start-screen","queue-screen","genre-screen"].forEach(id =>
+          document.getElementById(id).style.display = "none"
+        );
       }
     } catch (e) { document.getElementById("status-label").textContent = "offline"; }
   }
 
+  // ── Votes ────────────────────────────────────────────────────────────────
   async function loadVoteStatus() {
     try {
       const res = await fetch(`${API}/votes/status`);
@@ -262,8 +386,8 @@
   }
 
   async function castVote(trackId) {
-    if (votesRemaining <= 0) { showToast("Keine Stimmen mehr für heute! 🗳️", true); return; }
-    if (votedTrackIds.has(trackId)) { showToast("Schon für diesen Song abgestimmt!", true); return; }
+    if (votesRemaining <= 0) { showToast("Keine Votes mehr für heute! 🗳️", true); return; }
+    if (votedTrackIds.has(trackId)) { showToast("Schon für diesen Song gevoted!", true); return; }
     try {
       const res = await fetch(`${API}/votes/cast`, {
         method: "POST", headers: {"Content-Type":"application/json"},
@@ -274,13 +398,74 @@
         votesRemaining = data.votes_remaining;
         votedTrackIds.add(trackId);
         renderVotePips(3 - votesRemaining, 3);
-        showToast(`Stimme abgegeben! Noch ${votesRemaining} übrig 🗳️`);
+        showToast(`Vote abgegeben! Noch ${votesRemaining} übrig 🗳️`);
         setTimeout(loadQueue, 600);
-      } else if (res.status === 429) showToast("Keine Stimmen mehr für heute!", true);
-      else if (res.status === 409) { showToast("Schon für diesen Song abgestimmt!", true); votedTrackIds.add(trackId); }
-    } catch (e) { showToast("Fehler beim Abstimmen", true); }
+      } else if (res.status === 429) showToast("Keine Votes mehr für heute!", true);
+      else if (res.status === 409) { showToast("Schon für diesen Song gevoted!", true); votedTrackIds.add(trackId); }
+    } catch (e) { showToast("Fehler beim Voten", true); }
   }
 
+  // ── Add Limit ────────────────────────────────────────────────────────────
+  async function loadAddsStatus() {
+    try {
+      const res = await fetch(`${API}/adds/status`);
+      const data = await res.json();
+      addsRemaining = data.adds_remaining;
+      renderAddLimit(addsRemaining);
+    } catch (e) {}
+  }
+
+  function renderAddLimit(remaining) {
+    const el = document.getElementById("add-limit-count");
+    if (!el) return;
+    // 🎵 für jeden verbleibenden Add
+    el.textContent = remaining > 0 ? "🎵".repeat(remaining) : "✗ Limit erreicht";
+  }
+
+  // ── Stats: Top Song + Top Genres ─────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const res = await fetch(`${API}/stats/top-song`);
+      const data = await res.json();
+      const banner = document.getElementById("top-song-banner");
+      if (data.top_song) {
+        document.getElementById("top-song-name").textContent = `🏆 ${data.top_song.name}`;
+        document.getElementById("top-song-artist").textContent = `${data.top_song.artist} · ${data.top_song.count}x heute`;
+        banner.style.display = "block";
+      } else {
+        banner.style.display = "none";
+      }
+    } catch (e) {}
+  }
+
+  async function loadTopGenres() {
+    try {
+      const res = await fetch(`${API}/stats/top-genres`);
+      const data = await res.json();
+      const podium = document.getElementById("genre-podium");
+      const bars = document.getElementById("podium-bars");
+      if (!data.top_genres || data.top_genres.length === 0) {
+        podium.style.display = "none";
+        return;
+      }
+      // Treppchen: Platz 2, 1, 3 (2 links, 1 mitte höchste, 3 rechts)
+      const top = data.top_genres;
+      const order = [top[1], top[0], top[2]].filter(Boolean);
+      const heights = [50, 70, 40]; // Höhe der Balken in px
+      const rankClasses = ["rank-2", "rank-1", "rank-3"];
+      bars.innerHTML = order.map((g, idx) => `
+        <div class="podium-bar">
+          <div class="podium-block ${rankClasses[idx]}" style="height:${heights[idx]}px">
+            ${idx === 1 ? '🥇' : idx === 0 ? '🥈' : '🥉'}
+          </div>
+          <div class="podium-label">${g.genre}</div>
+        </div>
+      `).join("");
+      podium.style.display = "block";
+    } catch (e) {}
+  }
+
+  // ── Queue ────────────────────────────────────────────────────────────────
   async function loadQueue() {
     try {
       const res = await fetch(`${API}/queue`);
@@ -310,12 +495,15 @@
     if (!queue.length) { el.innerHTML = `<div class="empty-state">Warteschlange leer — füg was hinzu! 🎶</div>`; return; }
     el.innerHTML = queue.map((t, i) => {
       const votes = t.votes || 0;
-      const barPct = Math.round((votes / 3) * 100);
+      // 🔥 Flammen: 1 Vote = 🔥, 2 = 🔥🔥, 3 = 🔥🔥🔥
+      const flames = votes > 0 ? "🔥".repeat(votes) : "";
       const alreadyVoted = votedTrackIds.has(t.id);
       const btnDisabled = (alreadyVoted || votesRemaining <= 0) ? "disabled" : "";
       const btnClass = alreadyVoted ? "vote-btn voted" : "vote-btn";
-      const isTop = i === 0 && votes > 0;
-      return `<div class="queue-item ${isTop?'top-voted':''}">
+      // Rank-Klasse für Größenstaffelung
+      const rankClass = i === 0 ? "rank-1" : i === 1 ? "rank-2" : "";
+      const addDisabled = addsRemaining <= 0 ? "disabled" : "";
+      return `<div class="queue-item ${rankClass}">
         <div class="queue-item-top">
           <div class="queue-num">${i+1}</div>
           <img class="queue-thumb" src="${t.album_art||''}" alt=""/>
@@ -324,20 +512,18 @@
             <div class="queue-artist">${t.artist}</div>
           </div>
           <div class="vote-col">
-            <button class="add-btn" onclick="addToQueue('${t.id}', this)" style="margin-bottom:4px">+ Add</button>
+            <button class="add-btn" onclick="addToQueue('${t.id}','${t.name.replace(/'/g,"\\'")}','${t.artist.replace(/'/g,"\\'")}', this)" style="margin-bottom:4px" ${addDisabled}>+ Add</button>
             <button class="${btnClass}" onclick="castVote('${t.id}')" ${btnDisabled}>
               ${alreadyVoted ? '✓ Voted' : '▲ Vote'}
             </button>
           </div>
         </div>
-        ${votes > 0 ? `<div class="vote-bar-wrap">
-          <div class="vote-bar-track"><div class="vote-bar-fill" style="width:${barPct}%"></div></div>
-          <div class="vote-count-label">${votes} vote${votes!==1?'s':''}</div>
-        </div>` : ''}
+        ${flames ? `<div class="vote-flames">${flames}</div>` : ''}
       </div>`;
     }).join("");
   }
 
+  // ── Search ───────────────────────────────────────────────────────────────
   async function searchTracks() {
     const q = document.getElementById("search-input").value.trim();
     if (!q) return;
@@ -353,37 +539,68 @@
 
   function renderSearchResults(tracks) {
     const el = document.getElementById("search-results");
-    if (!tracks.length) { el.innerHTML = `<div class="empty-state">Keine Ergebnisse.</div>`; return; }
-    el.innerHTML = tracks.map(t => `
-      <div class="search-result-item">
+    if (!tracks || !tracks.length) { el.innerHTML = `<div class="empty-state">Keine Ergebnisse.</div>`; return; }
+    el.innerHTML = "";
+    tracks.forEach(t => {
+      const div = document.createElement("div");
+      div.className = "search-result-item";
+      div.innerHTML = `
         <img class="search-thumb" src="${t.album_art||''}" alt=""/>
         <div class="search-info">
           <div class="search-name">${t.name}</div>
           <div class="search-artist">${t.artist} · ${t.album}</div>
-        </div>
-        <button class="add-btn" onclick="addToQueue('${t.id}', this)">+ Add</button>
-      </div>`).join("");
+        </div>`;
+      const btn = document.createElement("button");
+      btn.className = "add-btn";
+      btn.textContent = "+ Add";
+      if (addsRemaining <= 0) btn.disabled = true;
+      btn.onclick = () => addToQueue(t.id, t.name, t.artist, btn);
+      div.appendChild(btn);
+      el.appendChild(div);
+    });
   }
 
-  async function addToQueue(trackId, btn) {
+  async function addToQueue(trackId, trackName, trackArtist, btn) {
+    if (addsRemaining <= 0) { showToast("Du hast heute dein Song-Limit erreicht!", true); return; }
     btn.disabled = true; btn.textContent = "...";
     try {
       const res = await fetch(`${API}/queue/add`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({track_id: trackId})
+        body: JSON.stringify({track_id: trackId, track_name: trackName, track_artist: trackArtist})
       });
-      if (res.ok) { btn.textContent = "✓"; showToast("Zur Warteschlange hinzugefügt! 🎵"); setTimeout(loadQueue, 1000); }
-      else { btn.textContent = "Error"; btn.disabled = false; }
+      if (res.ok) {
+        const data = await res.json();
+        addsRemaining = data.adds_remaining;
+        renderAddLimit(addsRemaining);
+        btn.textContent = "✓";
+        showToast("Zur Warteschlange hinzugefügt! 🎵");
+        setTimeout(loadQueue, 1000);
+        setTimeout(loadStats, 1500);
+      } else if (res.status === 429) {
+        showToast("Song-Limit für heute erreicht!", true);
+        btn.textContent = "+ Add";
+        btn.disabled = false;
+      } else {
+        btn.textContent = "Error"; btn.disabled = false;
+      }
     } catch(e) { btn.textContent = "Error"; btn.disabled = false; }
   }
 
+  // ── Genre ────────────────────────────────────────────────────────────────
   async function searchGenre(genre) {
     showToast(`Suche ${genre} Songs... 🎲`);
+    // Genre-Klick ans Backend schicken (für Treppchen)
+    fetch(`${API}/genre/click`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({genre})
+    }).catch(() => {});
+
     try {
       const res = await fetch(`${API}/search?q=${encodeURIComponent(genre)}`);
       const data = await res.json();
       if (data.tracks && data.tracks.length > 0) {
         renderGenreResults(data.tracks);
+        loadTopGenres();
       } else {
         showToast("Keine Songs gefunden", true);
       }
@@ -411,7 +628,8 @@
       const btn = document.createElement("button");
       btn.className = "add-btn";
       btn.textContent = "+ Add";
-      btn.onclick = () => addToQueue(t.id, btn);
+      if (addsRemaining <= 0) btn.disabled = true;
+      btn.onclick = () => addToQueue(t.id, t.name, t.artist, btn);
       div.appendChild(btn);
       resultsEl.appendChild(div);
     });
@@ -427,12 +645,15 @@
 
   document.getElementById("search-btn").addEventListener("click", searchTracks);
   document.getElementById("search-input").addEventListener("keydown", e => { if (e.key==="Enter") searchTracks(); });
-  document.getElementById("search-input").addEventListener("input", e => { if (!e.target.value.trim()) document.getElementById("search-results").innerHTML=""; });
+  document.getElementById("search-input").addEventListener("input", e => {
+    if (!e.target.value.trim()) document.getElementById("search-results").innerHTML = "";
+  });
 
   checkAuth();
   setInterval(() => { if (currentScreen==="queue") loadQueue(); }, 10000);
   setInterval(checkAuth, 30000);
   setInterval(loadVoteStatus, 15000);
+  setInterval(loadAddsStatus, 15000);
 </script>
 </body>
 </html>

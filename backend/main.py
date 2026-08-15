@@ -29,6 +29,7 @@ DB_PATH = "cosmos.db"
 
 def init_db():
     con = sqlite3.connect(DB_PATH)
+    # Tabelle 1: Spotify Token speichern
     con.execute("""
         CREATE TABLE IF NOT EXISTS tokens (
             id INTEGER PRIMARY KEY,
@@ -36,12 +37,43 @@ def init_db():
             updated_at INTEGER NOT NULL
         )
     """)
+    # Tabelle 2: Votes speichern (wer hat welchen Song gevoted)
     con.execute("""
         CREATE TABLE IF NOT EXISTS votes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT NOT NULL,
             track_id TEXT NOT NULL,
             vote_date TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    """)
+    # NEU Tabelle 3: Zählt wie oft ein Song zur Queue hinzugefügt wurde (für All Time Favorite)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS song_plays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT NOT NULL,
+            track_name TEXT NOT NULL,
+            track_artist TEXT NOT NULL,
+            play_date TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    """)
+    # NEU Tabelle 4: Zählt Genre-Klicks (für Genre-Treppchen)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS genre_clicks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            genre TEXT NOT NULL,
+            click_date TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    """)
+    # NEU Tabelle 5: Wie viele Songs hat eine IP heute hinzugefügt (3-Song-Limit)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS add_limits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip TEXT NOT NULL,
+            track_id TEXT NOT NULL,
+            add_date TEXT NOT NULL,
             created_at INTEGER NOT NULL
         )
     """)
@@ -74,7 +106,7 @@ def load_token() -> dict | None:
         return json.loads(row[0])
     return None
 
-# ── Spotify setup ────────────────────────────────────────────────────────────
+# ── Spotify setup ─────────────────────────────────────────────────────────────
 
 SCOPES = "user-read-playback-state user-modify-playback-state playlist-read-private"
 
@@ -104,7 +136,7 @@ def get_client_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host
 
-# ── Auth routes ──────────────────────────────────────────────────────────────
+# ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.get("/login")
 def login():
@@ -118,9 +150,9 @@ def callback(code: str = Query(...)):
     token_info = oauth.get_access_token(code, as_dict=True)
     save_token(token_info)
     return HTMLResponse("""
-        <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#0a0a0f;color:white">
-        <h2 style="color:#b8ff57">✅ Cosmos Queue connected to Spotify!</h2>
-        <p style="color:#9999bb">You can close this tab. The queue is live!</p>
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#0d0a14;color:white">
+        <h2 style="color:#c97ef5">✅ Cosmos Jukebox mit Spotify verbunden!</h2>
+        <p style="color:#9988bb">Du kannst diesen Tab schließen.</p>
         </body></html>
     """)
 
@@ -132,7 +164,7 @@ def auth_status():
     user = sp.current_user()
     return {"authenticated": True, "display_name": user["display_name"]}
 
-# ── Queue routes ─────────────────────────────────────────────────────────────
+# ── Queue routes ──────────────────────────────────────────────────────────────
 
 @app.get("/queue")
 def get_queue():
@@ -165,13 +197,13 @@ def get_queue():
         for t in queue_data.get("queue", [])[:10]
     ]
 
-    # Attach vote counts and original position
+    # Votes anhängen + original Position merken (für FIFO bei Gleichstand)
     vote_counts = get_vote_counts()
     for i, song in enumerate(queue):
         song["votes"] = vote_counts.get(song["id"], 0)
-        song["original_position"] = i  # preserve Spotify queue order
+        song["original_position"] = i
 
-    # Sort: primary = votes descending, secondary = original position ascending (FIFO on tie)
+    # Sortierung: meiste Votes zuerst, bei Gleichstand: wer zuerst hinzugefügt wurde
     queue.sort(key=lambda x: (-x["votes"], x["original_position"]))
 
     return {"now_playing": now_playing, "queue": queue}
@@ -179,15 +211,55 @@ def get_queue():
 
 class AddSongRequest(BaseModel):
     track_id: str
+    track_name: str = ""
+    track_artist: str = ""
+
+# NEU: Prüft wie viele Songs eine IP heute schon hinzugefügt hat
+def get_adds_today(ip: str) -> int:
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    count = con.execute(
+        "SELECT COUNT(*) FROM add_limits WHERE ip = ? AND add_date = ?",
+        (ip, today)
+    ).fetchone()[0]
+    con.close()
+    return count
+
+MAX_ADDS_PER_DAY = 3  # Jeder Gast darf max 3 Songs pro Tag hinzufügen
 
 @app.post("/queue/add")
-def add_to_queue(body: AddSongRequest):
+def add_to_queue(body: AddSongRequest, request: Request):
     sp = get_spotify_client()
     if not sp:
         raise HTTPException(status_code=401, detail="Spotify not connected")
+
+    # NEU: 3-Song-Limit pro IP pro Tag prüfen
+    ip = get_client_ip(request)
+    adds_today = get_adds_today(ip)
+    if adds_today >= MAX_ADDS_PER_DAY:
+        raise HTTPException(status_code=429, detail="Song limit reached for today")
+
     track_uri = f"spotify:track:{body.track_id}"
     sp.add_to_queue(track_uri)
-    return {"success": True, "message": "Song added to queue!"}
+
+    today = str(date.today())
+
+    # NEU: Add-Limit tracken
+    con = sqlite3.connect(DB_PATH)
+    con.execute(
+        "INSERT INTO add_limits (ip, track_id, add_date, created_at) VALUES (?, ?, ?, ?)",
+        (ip, body.track_id, today, int(time.time()))
+    )
+    # NEU: Song-Play tracken (für All Time Favorite)
+    con.execute(
+        "INSERT INTO song_plays (track_id, track_name, track_artist, play_date, created_at) VALUES (?, ?, ?, ?, ?)",
+        (body.track_id, body.track_name, body.track_artist, today, int(time.time()))
+    )
+    con.commit()
+    con.close()
+
+    remaining_adds = MAX_ADDS_PER_DAY - adds_today - 1
+    return {"success": True, "adds_remaining": remaining_adds}
 
 @app.get("/search")
 def search_tracks(q: str = Query(..., min_length=2)):
@@ -208,12 +280,71 @@ def search_tracks(q: str = Query(..., min_length=2)):
     ]
     return {"tracks": tracks}
 
+# ── Stats routes ──────────────────────────────────────────────────────────────
+
+# NEU: Gibt den meistgespielten Song heute zurück (All Time Favorite des Tages)
+@app.get("/stats/top-song")
+def get_top_song():
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    row = con.execute("""
+        SELECT track_id, track_name, track_artist, COUNT(*) as cnt
+        FROM song_plays
+        WHERE play_date = ?
+        GROUP BY track_id
+        ORDER BY cnt DESC
+        LIMIT 1
+    """, (today,)).fetchone()
+    con.close()
+    if not row:
+        return {"top_song": None}
+    return {"top_song": {"id": row[0], "name": row[1], "artist": row[2], "count": row[3]}}
+
+# NEU: Speichert einen Genre-Klick
+class GenreClickRequest(BaseModel):
+    genre: str
+
+@app.post("/genre/click")
+def genre_click(body: GenreClickRequest):
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    con.execute(
+        "INSERT INTO genre_clicks (genre, click_date, created_at) VALUES (?, ?, ?)",
+        (body.genre, today, int(time.time()))
+    )
+    con.commit()
+    con.close()
+    return {"success": True}
+
+# NEU: Gibt die Top 3 Genres heute zurück (für Treppchen)
+@app.get("/stats/top-genres")
+def get_top_genres():
+    today = str(date.today())
+    con = sqlite3.connect(DB_PATH)
+    rows = con.execute("""
+        SELECT genre, COUNT(*) as cnt
+        FROM genre_clicks
+        WHERE click_date = ?
+        GROUP BY genre
+        ORDER BY cnt DESC
+        LIMIT 3
+    """, (today,)).fetchall()
+    con.close()
+    return {"top_genres": [{"genre": r[0], "count": r[1]} for r in rows]}
+
+# NEU: Gibt zurück wie viele Songs eine IP heute noch hinzufügen darf
+@app.get("/adds/status")
+def adds_status(request: Request):
+    ip = get_client_ip(request)
+    used = get_adds_today(ip)
+    remaining = max(0, MAX_ADDS_PER_DAY - used)
+    return {"adds_remaining": remaining, "adds_used": used, "max_adds": MAX_ADDS_PER_DAY}
+
 # ── Voting routes ─────────────────────────────────────────────────────────────
 
 MAX_VOTES_PER_DAY = 3
 
 def get_vote_counts() -> dict:
-    """Returns {track_id: vote_count} for today."""
     today = str(date.today())
     con = sqlite3.connect(DB_PATH)
     rows = con.execute(
@@ -245,7 +376,6 @@ def has_voted_for_track_today(ip: str, track_id: str) -> bool:
 
 @app.get("/votes/status")
 def votes_status(request: Request):
-    """How many votes does this IP have left today?"""
     ip = get_client_ip(request)
     used = get_votes_used_today(ip)
     remaining = max(0, MAX_VOTES_PER_DAY - used)
