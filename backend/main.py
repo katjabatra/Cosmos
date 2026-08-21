@@ -81,6 +81,13 @@ def init_db():
             track_id TEXT NOT NULL,
             add_date TEXT NOT NULL,
             created_at INTEGER NOT NULL
+        )    
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS qr_scans (
+            id SERIAL PRIMARY KEY,
+            scan_date TEXT NOT NULL,
+            created_at INTEGER NOT NULL
         )
     """)
     con.commit()
@@ -360,6 +367,20 @@ def adds_status(request: Request):
     remaining = max(0, MAX_ADDS_PER_DAY - used)
     return {"adds_remaining": remaining, "adds_used": used, "max_adds": MAX_ADDS_PER_DAY}
 
+@app.get("/admin/scan")
+def track_scan():
+    today = str(date.today())
+    con = get_db()
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO qr_scans (scan_date, created_at) VALUES (%s, %s)",
+        (today, int(time.time()))
+    )
+    con.commit()
+    cur.close()
+    con.close()
+    return {"ok": True}
+
 # ── Voting routes ─────────────────────────────────────────────────────────────
 
 MAX_VOTES_PER_DAY = 3
@@ -442,67 +463,65 @@ def cast_vote(body: VoteRequest, request: Request):
 
 # 21.8 Änderungen Admin Dashboard 
 
-# 1. KPIs
 @app.get("/api/stats/kpis")
 def get_kpis():
-    conn = get_db()
-    cur = conn.cursor()
-    
-    now = int(time.time())
-    today_start = now - (now % 86400)
-    week_start = now - (7 * 86400)
-
-    cur.execute("""
-        SELECT 
-            COUNT(CASE WHEN created_at >= %s THEN 1 END) as scans_today,
-            COUNT(CASE WHEN created_at >= %s THEN 1 END) as scans_this_week
-        FROM votes;
-    """, (today_start, week_start))
-    
-    stats = cur.fetchone()
+    today = str(date.today())
+    from datetime import datetime, timedelta
+    week_ago = str((datetime.today() - timedelta(days=7)).date())
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT COUNT(*) FROM qr_scans WHERE scan_date = %s", (today,))
+    scans_today = list(cur.fetchone().values())[0]
+    cur.execute("SELECT COUNT(*) FROM qr_scans WHERE scan_date >= %s", (week_ago,))
+    scans_week = list(cur.fetchone().values())[0]
     cur.close()
-    conn.close()
-    return stats
+    con.close()
+    return {"scans_today": scans_today, "scans_this_week": scans_week}
 
-# 2. Peak-Zeiten
 @app.get("/api/stats/hourly")
 def get_hourly_stats():
-    conn = get_db()
-    cur = conn.cursor()
-    
+    con = get_db()
+    cur = con.cursor()
     cur.execute("""
-        SELECT 
-            TO_CHAR(to_timestamp(created_at), 'HH24:00') as hour, 
-            COUNT(*) as scans
-        FROM votes
+        SELECT TO_CHAR(to_timestamp(created_at) AT TIME ZONE 'Europe/Berlin', 'HH24') as hour,
+               COUNT(*) as scans
+        FROM qr_scans
         GROUP BY hour
-        ORDER BY hour ASC;
+        ORDER BY hour ASC
     """)
-    
-    hourly_data = cur.fetchall()
+    rows = cur.fetchall()
     cur.close()
-    conn.close()
-    return hourly_data
+    con.close()
+    return [{"hour": r["hour"] + ":00", "scans": r["scans"]} for r in rows]
 
-# 3. Top 5 Songs
-# 3. Top 5 Songs
 @app.get("/api/stats/top-songs")
 def get_top_songs():
-    conn = get_db()
-    cur = conn.cursor()
-    
+    con = get_db()
+    cur = con.cursor()
     cur.execute("""
-        SELECT 
-            track_name as title, 
-            track_artist as artist, 
-            COUNT(*) as scans
+        SELECT track_name as title, track_artist as artist, COUNT(*) as scans
         FROM song_plays
         GROUP BY track_name, track_artist
         ORDER BY scans DESC
-        LIMIT 5;
+        LIMIT 5
     """)
-    
-    top_songs = cur.fetchall()
+    rows = cur.fetchall()
     cur.close()
-    conn.close()
-    return top_songs
+    con.close()
+    return [{"title": r["title"], "artist": r["artist"], "scans": r["scans"]} for r in rows]
+
+@app.get("/api/stats/top-genres")
+def get_top_genres_admin():
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("""
+        SELECT genre, COUNT(*) as cnt
+        FROM genre_clicks
+        GROUP BY genre
+        ORDER BY cnt DESC
+        LIMIT 5
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    return [{"genre": r["genre"], "count": r["count"]} for r in rows]

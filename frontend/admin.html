@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cosmos Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0a14;
+      --surface: #1a1425;
+      --surface2: #241a33;
+      --accent: #c97ef5;
+      --text: #f0eaf8;
+      --muted: #9988bb;
+      --border: rgba(201,126,245,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    /* Login */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; gap: 16px; padding: 24px;
+    }
+    #login-screen h2 { font-size: 22px; color: var(--accent); font-family: 'Space Mono', monospace; }
+    #login-screen p { font-size: 13px; color: var(--muted); }
+    #pw-input {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 14px 18px; color: var(--text); font-size: 16px; outline: none;
+      width: 100%; max-width: 280px; text-align: center; letter-spacing: 3px;
+      transition: border-color 0.2s;
+    }
+    #pw-input:focus { border-color: var(--accent); }
+    #login-btn {
+      background: var(--accent); color: #0d0a14; border: none; border-radius: 12px;
+      padding: 14px 32px; font-weight: 700; font-size: 15px; cursor: pointer;
+      width: 100%; max-width: 280px;
+    }
+    #login-error { color: #ff4466; font-size: 13px; display: none; }
+
+    /* Dashboard */
+    #dashboard { display: none; padding: 24px 20px; max-width: 900px; margin: 0 auto; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .logo { font-family: 'Space Mono', monospace; font-size: 16px; color: var(--accent); }
+    .logo span { color: var(--muted); }
+    .logout-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px; text-align: center;
+    }
+    .kpi-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+    .kpi-value { font-size: 42px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* Charts & Lists */
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    .card-title {
+      font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 16px;
+    }
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* Top lists */
+    .top-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .top-list li {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface2); border-radius: 10px; padding: 10px 14px;
+    }
+    .top-rank { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent); width: 24px; flex-shrink: 0; }
+    .top-info { flex: 1; min-width: 0; }
+    .top-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .top-count { font-size: 13px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+    .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
+    .loading { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div style="font-size:48px">🔐</div>
+  <h2>COSMOS / admin</h2>
+  <p>Nur für Costa</p>
+  <input type="password" id="pw-input" placeholder="Passwort"/>
+  <p id="login-error">❌ Falsches Passwort</p>
+  <button id="login-btn" onclick="checkLogin()">Einloggen</button>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <header>
+    <div class="logo">COSMOS<span>/admin</span></div>
+    <button class="logout-btn" onclick="logout()">Ausloggen</button>
+  </header>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">QR Scans Heute</div>
+      <div class="kpi-value" id="kpi-today">—</div>
+      <div class="kpi-sub">Gäste heute</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">QR Scans diese Woche</div>
+      <div class="kpi-value" id="kpi-week">—</div>
+      <div class="kpi-sub">Letzte 7 Tage</div>
+    </div>
+  </div>
+
+  <!-- Peak-Zeiten Chart -->
+  <div class="card">
+    <div class="card-title">📊 Peak-Zeiten (Uhrzeit)</div>
+    <div class="chart-wrap">
+      <canvas id="peakChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top 5 Songs -->
+  <div class="card">
+    <div class="card-title">🎵 Top 5 Songs heute</div>
+    <ol class="top-list" id="top-songs-list">
+      <li class="loading">Lade Daten...</li>
+    </ol>
+  </div>
+
+  <!-- Top Genres -->
+  <div class="card">
+    <div class="card-title">🎲 Beliebteste Genres</div>
+    <ol class="top-list" id="top-genres-list">
+      <li class="loading">Lade Daten...</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+  const ADMIN_PASSWORD = "COSMOS2025";
+
+  function checkLogin() {
+    const pw = document.getElementById("pw-input").value;
+    if (pw === ADMIN_PASSWORD) {
+      sessionStorage.setItem("admin_access", "true");
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+      loadAll();
+    } else {
+      document.getElementById("login-error").style.display = "block";
+      document.getElementById("pw-input").value = "";
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem("admin_access");
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("login-screen").style.display = "flex";
+  }
+
+  document.getElementById("pw-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") checkLogin();
+  });
+
+  // Auto-login if session active
+  if (sessionStorage.getItem("admin_access") === "true") {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    loadAll();
+  }
+
+  async function loadAll() {
+    await Promise.all([loadKPIs(), loadHourly(), loadTopSongs(), loadTopGenres()]);
+  }
+
+  async function loadKPIs() {
+    try {
+      const res = await fetch("/api/stats/kpis");
+      const data = await res.json();
+      document.getElementById("kpi-today").textContent = data.scans_today ?? 0;
+      document.getElementById("kpi-week").textContent = data.scans_this_week ?? 0;
+    } catch(e) { console.error("KPI Fehler", e); }
+  }
+
+  let peakChartInstance = null;
+  async function loadHourly() {
+    try {
+      const res = await fetch("/api/stats/hourly");
+      const data = await res.json();
+      const ctx = document.getElementById("peakChart").getContext("2d");
+      if (peakChartInstance) peakChartInstance.destroy();
+      peakChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(d => d.hour),
+          datasets: [{
+            label: "Scans",
+            data: data.map(d => d.scans),
+            backgroundColor: "rgba(201,126,245,0.6)",
+            borderColor: "#c97ef5",
+            borderRadius: 6,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: "#9988bb" }, grid: { color: "rgba(201,126,245,0.08)" } },
+            x: { ticks: { color: "#9988bb" }, grid: { display: false } }
+          }
+        }
+      });
+    } catch(e) { console.error("Hourly Fehler", e); }
+  }
+
+  async function loadTopSongs() {
+    const el = document.getElementById("top-songs-list");
+    try {
+      const res = await fetch("/api/stats/top-songs");
+      const data = await res.json();
+      if (!data.length) { el.innerHTML = '<li class="empty">Noch keine Songs heute</li>'; return; }
+      const medals = ["🥇","🥈","🥉","4.","5."];
+      el.innerHTML = data.map((s, i) => `
+        <li>
+          <span class="top-rank">${medals[i]}</span>
+          <div class="top-info">
+            <div class="top-name">${s.title}</div>
+            <div class="top-sub">${s.artist}</div>
+          </div>
+          <span class="top-count">${s.scans}x</span>
+        </li>`).join("");
+    } catch(e) { el.innerHTML = '<li class="empty">Fehler beim Laden</li>'; }
+  }
+
+  async function loadTopGenres() {
+    const el = document.getElementById("top-genres-list");
+    try {
+      const res = await fetch("/api/stats/top-genres");
+      const data = await res.json();
+      if (!data.length) { el.innerHTML = '<li class="empty">Noch keine Genre-Klicks</li>'; return; }
+      const medals = ["🥇","🥈","🥉","4.","5."];
+      el.innerHTML = data.map((g, i) => `
+        <li>
+          <span class="top-rank">${medals[i]}</span>
+          <div class="top-info">
+            <div class="top-name">${g.genre}</div>
+          </div>
+          <span class="top-count">${g.count}x</span>
+        </li>`).join("");
+    } catch(e) { el.innerHTML = '<li class="empty">Fehler beim Laden</li>'; }
+  }
+</script>
+</body>
+</html>
