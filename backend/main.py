@@ -26,8 +26,16 @@ app.add_middleware(
 
 app.mount("/app", StaticFiles(directory="../frontend", html=True), name="frontend")
 
+#def get_db():
+ #   return psycopg2.connect(os.getenv("DATABASE_URL"), sslmode="require")
+
+
 def get_db():
-    return psycopg2.connect(os.getenv("DATABASE_URL"), sslmode="require")
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL"), 
+        sslmode="require", 
+        cursor_factory=psycopg2.extras.RealDictCursor
+    )
 
 def init_db():
     con = get_db()
@@ -108,7 +116,7 @@ def load_token() -> dict | None:
     cur.close()
     con.close()
     if row:
-        return json.loads(row[0])
+        return json.loads(row["token_json"])
     return None
 
 # ── Spotify setup ─────────────────────────────────────────────────────────────
@@ -202,13 +210,11 @@ def get_queue():
         for t in queue_data.get("queue", [])[:10]
     ]
 
-    # Votes anhängen + original Position merken (für FIFO bei Gleichstand)
     vote_counts = get_vote_counts()
     for i, song in enumerate(queue):
         song["votes"] = vote_counts.get(song["id"], 0)
         song["original_position"] = i
 
-    # Sortierung: meiste Votes zuerst, bei Gleichstand: wer zuerst hinzugefügt wurde
     queue.sort(key=lambda x: (-x["votes"], x["original_position"]))
 
     return {"now_playing": now_playing, "queue": queue}
@@ -223,12 +229,12 @@ class AddSongRequest(BaseModel):
 def get_adds_today(ip: str) -> int:
     today = str(date.today())
     con = get_db()
-    count = cur = con.cursor()
-    cur.execute("SELECT COUNT(*) FROM add_limits WHERE ip = %s AND add_date = %s", (ip, today))
-    count = cur.fetchone()[0]
+    cur = con.cursor()
+    cur.execute("SELECT COUNT(*) as cnt FROM add_limits WHERE ip = %s AND add_date = %s", (ip, today))
+    row = cur.fetchone()
     cur.close()
     con.close()
-    return count
+    return row["cnt"] if row else 0
 
 MAX_ADDS_PER_DAY = 3  # Jeder Gast darf max 3 Songs pro Tag hinzufügen
 
@@ -298,7 +304,7 @@ def get_top_song():
         SELECT track_id, track_name, track_artist, COUNT(*) as cnt
         FROM song_plays
         WHERE play_date = %s
-        GROUP BY track_id
+        GROUP BY track_id, track_name, track_artist
         ORDER BY cnt DESC
         LIMIT 1
     """, (today,))
@@ -307,7 +313,7 @@ def get_top_song():
     con.close()
     if not row:
         return {"top_song": None}
-    return {"top_song": {"id": row[0], "name": row[1], "artist": row[2], "count": row[3]}}
+    return {"top_song": {"id": row["track_id"], "name": row["track_name"], "artist": row["track_artist"], "count": row["cnt"]}}
 
 # NEU: Speichert einen Genre-Klick
 class GenreClickRequest(BaseModel):
@@ -344,7 +350,7 @@ def get_top_genres():
     rows = cur.fetchall()
     cur.close()
     con.close()
-    return {"top_genres": [{"genre": r[0], "count": r[1]} for r in rows]}
+    return {"top_genres": [{"genre": r["genre"], "count": r["cnt"]} for r in rows]}
 
 # NEU: Gibt zurück wie viele Songs eine IP heute noch hinzufügen darf
 @app.get("/adds/status")
@@ -362,31 +368,31 @@ def get_vote_counts() -> dict:
     today = str(date.today())
     con = get_db()
     cur = con.cursor()
-    cur.execute("SELECT track_id, COUNT(*) FROM votes WHERE vote_date = %s GROUP BY track_id", (today,))
+    cur.execute("SELECT track_id, COUNT(*) as cnt FROM votes WHERE vote_date = %s GROUP BY track_id", (today,))
     rows = cur.fetchall()
     cur.close()
     con.close()
-    return {row[0]: row[1] for row in rows}
+    return {row["track_id"]: row["cnt"] for row in rows}
 
 def get_votes_used_today(ip: str) -> int:
     today = str(date.today())
     con = get_db()
     cur = con.cursor()
-    cur.execute("SELECT COUNT(*) FROM votes WHERE ip = %s AND vote_date = %s", (ip, today))
-    count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) as cnt FROM votes WHERE ip = %s AND vote_date = %s", (ip, today))
+    row = cur.fetchone()
     cur.close()
     con.close()
-    return count
+    return row["cnt"] if row else 0
 
 def has_voted_for_track_today(ip: str, track_id: str) -> bool:
     today = str(date.today())
     con = get_db()
     cur = con.cursor()
-    cur.execute("SELECT COUNT(*) FROM votes WHERE ip = %s AND track_id = %s AND vote_date = %s", (ip, track_id, today))
-    count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) as cnt FROM votes WHERE ip = %s AND track_id = %s AND vote_date = %s", (ip, track_id, today))
+    row = cur.fetchone()
     cur.close()
     con.close()
-    return count > 0
+    return (row["cnt"] > 0) if row else False
 
 @app.get("/votes/status")
 def votes_status(request: Request):
@@ -428,3 +434,75 @@ def cast_vote(body: VoteRequest, request: Request):
 
     remaining = MAX_VOTES_PER_DAY - used - 1
     return {"success": True, "votes_remaining": remaining}
+
+
+
+
+
+
+# 21.8 Änderungen Admin Dashboard 
+
+# 1. KPIs
+@app.get("/api/stats/kpis")
+def get_kpis():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    now = int(time.time())
+    today_start = now - (now % 86400)
+    week_start = now - (7 * 86400)
+
+    cur.execute("""
+        SELECT 
+            COUNT(CASE WHEN created_at >= %s THEN 1 END) as scans_today,
+            COUNT(CASE WHEN created_at >= %s THEN 1 END) as scans_this_week
+        FROM votes;
+    """, (today_start, week_start))
+    
+    stats = cur.fetchone()
+    cur.close()
+    conn.close()
+    return stats
+
+# 2. Peak-Zeiten
+@app.get("/api/stats/hourly")
+def get_hourly_stats():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT 
+            TO_CHAR(to_timestamp(created_at), 'HH24:00') as hour, 
+            COUNT(*) as scans
+        FROM votes
+        GROUP BY hour
+        ORDER BY hour ASC;
+    """)
+    
+    hourly_data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return hourly_data
+
+# 3. Top 5 Songs
+# 3. Top 5 Songs
+@app.get("/api/stats/top-songs")
+def get_top_songs():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT 
+            track_name as title, 
+            track_artist as artist, 
+            COUNT(*) as scans
+        FROM song_plays
+        GROUP BY track_name, track_artist
+        ORDER BY scans DESC
+        LIMIT 5;
+    """)
+    
+    top_songs = cur.fetchall()
+    cur.close()
+    conn.close()
+    return top_songs

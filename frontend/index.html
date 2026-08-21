@@ -646,5 +646,95 @@
   setInterval(loadVoteStatus, 15000);
   setInterval(loadAddsStatus, 15000);
 </script>
+<!-- Chart.js in den <head> deiner Datei packen, falls noch nicht geschehen: -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
+
+<!-- Dashboard HTML -->
+<div class="dashboard-grid">
+  <div class="card kpi-card">
+    <h3>Scans Heute</h3>
+    <p class="value" id="kpi-today">0</p>
+  </div>
+  
+  <div class="card kpi-card">
+    <h3>Scans Diese Woche</h3>
+    <p class="value" id="kpi-week">0</p>
+  </div>
+
+  <div class="card chart-card" style="grid-column: span 2; height: 320px;">
+    <h3 style="margin-top:0; color:#94a3b8;">Peak-Zeiten (Uhrzeit)</h3>
+    <div style="position: relative; height: 240px; width: 100%;">
+      <canvas id="peakChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card top-list-card" style="grid-column: span 2;">
+    <h3 style="margin-top:0; color:#94a3b8;">Top 5 Meistgescannte Songs</h3>
+    <ol id="top-songs-list">
+      <li>Lade Daten...</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Dashboard Javascript -->
+<script>
+async function loadDashboardData() {
+  try {
+    // 1. KPIs
+    const kpiRes = await fetch('/api/stats/kpis');
+    const kpis = await kpiRes.json();
+    document.getElementById('kpi-today').innerText = kpis.scans_today || 0;
+    document.getElementById('kpi-week').innerText = kpis.scans_this_week || 0;
+
+    // 2. Chart
+    const hourlyRes = await fetch('/api/stats/hourly');
+    const hourlyData = await hourlyRes.json();
+
+    const ctx = document.getElementById('peakChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: hourlyData.map(d => d.hour),
+        datasets: [{
+          label: 'Anzahl Scans',
+          data: hourlyData.map(d => d.scans),
+          backgroundColor: '#38bdf8',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+          x: { grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // 3. Top Songs
+    const topRes = await fetch('/api/stats/top-songs');
+    const topSongs = await topRes.json();
+    const listEl = document.getElementById('top-songs-list');
+
+    if (!topSongs || topSongs.length === 0) {
+      listEl.innerHTML = '<li>Noch keine Daten vorhanden</li>';
+    } else {
+      listEl.innerHTML = topSongs.map(song => `
+        <li>
+          <span><strong>${song.title}</strong> – ${song.artist}</span>
+          <span style="color:#38bdf8; font-weight:bold;">${song.scans} Scans</span>
+        </li>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.error('Fehler beim Laden der Dashboard-Daten:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
 </body>
 </html>
