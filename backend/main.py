@@ -243,7 +243,7 @@ def get_adds_today(ip: str) -> int:
     con.close()
     return row["cnt"] if row else 0
 
-MAX_ADDS_PER_DAY = 3  # Jeder Gast darf max 3 Songs pro Tag hinzufügen
+MAX_ADDS_PER_DAY = 999  # Jeder Gast darf max 3 Songs pro Tag hinzufügen
 
 @app.post("/queue/add")
 def add_to_queue(body: AddSongRequest, request: Request):
