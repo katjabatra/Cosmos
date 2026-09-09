@@ -186,6 +186,22 @@ def auth_status():
 
 # ── Queue routes ──────────────────────────────────────────────────────────────
 
+def get_add_times(track_ids: list) -> dict:
+    if not track_ids:
+        return {}
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("""
+        SELECT track_id, MIN(created_at) as first_added
+        FROM add_limits
+        WHERE track_id = ANY(%s)
+        GROUP BY track_id
+    """, (track_ids,))
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    return {row["track_id"]: row["first_added"] for row in rows}
+
 @app.get("/queue")
 def get_queue():
     sp = get_spotify_client()
@@ -218,11 +234,13 @@ def get_queue():
     ]
 
     vote_counts = get_vote_counts()
-    for i, song in enumerate(queue):
-        song["votes"] = vote_counts.get(song["id"], 0)
-        song["original_position"] = i
 
-    queue.sort(key=lambda x: (-x["votes"], x["original_position"]))
+    add_times = get_add_times([s["id"] for s in queue])
+    for song in queue:
+        song["votes"] = vote_counts.get(song["id"], 0)
+        song["added_at"] = add_times.get(song["id"], 9999999999)
+
+    queue.sort(key=lambda x: (-x["votes"], x["added_at"]))
 
     return {"now_playing": now_playing, "queue": queue}
 
