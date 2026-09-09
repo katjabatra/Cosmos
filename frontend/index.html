@@ -245,7 +245,10 @@
     <div id="search-results"></div>
   </section>
   <section id="queue-section">
-    <div class="section-label">Als nächstes</div>
+    <div class="section-label" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleQueue()">
+      Als nächstes
+      <span id="queue-toggle">▼</span>
+    </div>
     <div id="queue-list"></div>
   </section>
 </div>
@@ -321,6 +324,13 @@
     }
     currentScreen = name;
   }
+
+  let queueVisible = true;
+  function toggleQueue() {
+  queueVisible = !queueVisible;
+  document.getElementById("queue-list").style.display = queueVisible ? "flex" : "none";
+  document.getElementById("queue-toggle").textContent = queueVisible ? "▼" : "▶";
+}
 
   // ── Auth check ───────────────────────────────────────────────────────────
   async function checkAuth() {
