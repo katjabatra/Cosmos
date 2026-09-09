@@ -458,9 +458,6 @@ def cast_vote(body: VoteRequest, request: Request):
     if used >= MAX_VOTES_PER_DAY:
         raise HTTPException(status_code=429, detail="No votes left for today")
 
-    if has_voted_for_track_today(ip, body.track_id):
-        raise HTTPException(status_code=409, detail="Already voted for this song today")
-
     con = get_db()
     cur = con.cursor()
     cur.execute(

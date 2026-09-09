@@ -494,7 +494,7 @@
       // 🔥 Flammen: 1 Vote = 🔥, 2 = 🔥🔥, 3 = 🔥🔥🔥
       const flames = votes > 0 ? "🔥".repeat(votes) : "";
       const alreadyVoted = votedTrackIds.has(t.id);
-      const btnDisabled = (alreadyVoted || votesRemaining <= 0) ? "disabled" : "";
+      const btnDisabled = votesRemaining <= 0 ? "disabled" : "";
       const btnClass = alreadyVoted ? "vote-btn voted" : "vote-btn";
       // Rank-Klasse für Größenstaffelung
       const rankClass = i === 0 ? "rank-1" : i === 1 ? "rank-2" : "";
@@ -510,7 +510,7 @@
           <div class="vote-col">
             <button class="add-btn" onclick="addToQueue('${t.id}','${t.name.replace(/'/g,"\\'")}','${t.artist.replace(/'/g,"\\'")}', this)" style="margin-bottom:4px" ${addDisabled}>+ Add</button>
             <button class="${btnClass}" onclick="castVote('${t.id}')" ${btnDisabled}>
-              ${alreadyVoted ? '✓ Voted' : '▲ Vote'}
+              ▲ Vote
             </button>
           </div>
         </div>
