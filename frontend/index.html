@@ -570,8 +570,8 @@
         renderAddLimit(addsRemaining);
         btn.textContent = "✓";
         showToast("Zur Warteschlange hinzugefügt! 🎵");
-        setTimeout(loadQueue, 1000);
-        setTimeout(loadStats, 1500);
+        setTimeout(loadQueue, 2500);
+        setTimeout(loadStats, 3000);
       } else if (res.status === 429) {
         showToast("Song-Limit für heute erreicht!", true);
         btn.textContent = "+ Add";
