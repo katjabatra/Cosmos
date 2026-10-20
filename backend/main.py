@@ -207,6 +207,12 @@ def get_queue():
     sp = get_spotify_client()
     if not sp:
         raise HTTPException(status_code=401, detail="Spotify not connected")
+    # Gerät explizit aktivieren falls nötig
+    devices = sp.devices()
+    device_list = devices.get("devices", [])
+    active_device = next((d for d in device_list if d["is_active"]), None)
+    if not active_device and device_list:
+         active_device = device_list[0]
 
     playback = sp.current_playback()
     if not playback or not playback.get("item"):
