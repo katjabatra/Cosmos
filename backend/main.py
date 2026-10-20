@@ -149,6 +149,21 @@ def get_spotify_client():
         token_info = oauth.refresh_access_token(token_info["refresh_token"])
         save_token(token_info)
     return spotipy.Spotify(auth=token_info["access_token"])
+# ── Keepalive ─────────────────────────────────────────────────────────────────
+import threading
+
+def keepalive():
+    while True:
+        try:
+            sp = get_spotify_client()
+            if sp:
+                sp.current_playback()
+        except Exception:
+            pass
+        time.sleep(180)  # alle 3 Minuten
+
+threading.Thread(target=keepalive, daemon=True).start()
+
 
 def get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
