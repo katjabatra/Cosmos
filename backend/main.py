@@ -276,7 +276,17 @@ def add_to_queue(body: AddSongRequest, request: Request):
         raise HTTPException(status_code=429, detail="Song limit reached for today")
 
     track_uri = f"spotify:track:{body.track_id}"
-    sp.add_to_queue(track_uri)
+    # Aktives Gerät holen
+    devices = sp.devices()
+    device_list = devices.get("devices", [])
+
+# Aktives Gerät bevorzugen, sonst erstes verfügbares
+    active_device = next((d for d in device_list if d["is_active"]), None)
+    if not active_device and device_list:
+        active_device = device_list[0]
+
+    device_id = active_device["id"] if active_device else None
+    sp.add_to_queue(track_uri, device_id=device_id)
 
     today = str(date.today())
 
