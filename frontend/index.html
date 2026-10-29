@@ -18,7 +18,7 @@
       --border: rgba(201,126,245,0.12);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Caveat', sans-serif; font-size: 24px; min-height: 100vh; padding-bottom: 40px; }
+    body { background: var(--bg); color: var(--text); font-family: 'Caveat', sans-serif; font-size: 28px; min-height: 100vh; padding-bottom: 40px; }
 
     header { padding: 22px 20px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
     .logo { font-family: 'Space Mono', monospace; font-size: 17px; letter-spacing: 2px; color: var(--accent); }
@@ -69,16 +69,16 @@
     /* All Time Favorite Banner */
     #top-song-banner { margin: 10px 20px 0; background: linear-gradient(135deg, #1a1425, #241a33); border: 1px solid rgba(201,126,245,0.25); border-radius: 12px; padding: 12px 16px; display: none; }
     .top-song-label { font-family: 'Caveat', cursive; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
-    .top-song-info { font-size: 13px; font-weight: 600; }
-    .top-song-artist { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .top-song-info { font-size: 16px; font-weight: 600; }
+    .top-song-artist { font-size: 14px; color: var(--muted); margin-top: 2px; }
 
     /* Add-Limit Banner */
     #add-limit-banner { margin: 10px 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; display: none; }
-    .add-limit-label { font-size: 12px; color: var(--muted); font-family: 'Caveat', cursive; letter-spacing: 1px; }
-    .add-limit-count { font-size: 18px; }
+    .add-limit-label { font-size: 15px; color: var(--muted); font-family: 'Caveat', cursive; letter-spacing: 1px; }
+    .add-limit-count { font-size: 20px; }
 
     #now-playing-section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
-    .section-label { font-family: 'Caveat', cursive; font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+    .section-label { font-family: 'Caveat', cursive; font-size: 16px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
     .now-playing-card { display: flex; gap: 14px; align-items: center; background: var(--surface); border-radius: 12px; padding: 14px; border: 1px solid var(--border); }
     .now-playing-art { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
     .now-playing-info { flex: 1; min-width: 0; }
@@ -99,7 +99,7 @@
     #search-input { flex: 1; background: var(--surface); border: 2px solid var(--accent); border-radius: 14px; padding: 20px 22px; color: var(--text); font-size: 22px; font-family: 'Caveat', curisve; outline: none; transition: border-color 0.2s; min-height: 68px; }
     #search-input:focus { border-color: var(--accent); }
     #search-input::placeholder { color: var(--muted); }
-    #search-btn { background: var(--accent); color: #0d0a14; border: none; border-radius: 14px; padding: 16px 22px; font-weight: 700; font-size: 15px; cursor: pointer; font-family: 'Caveat', cursive; transition: opacity 0.15s; min-height: 68px; white-space: nowrap; }
+    #search-btn { background: var(--accent); color: #0d0a14; border: none; border-radius: 14px; padding: 16px 22px; font-weight: 700; font-size: 18px; cursor: pointer; font-family: 'Caveat', cursive; transition: opacity 0.15s; min-height: 68px; white-space: nowrap; }
     #search-btn:hover { opacity: 0.85; }
     #search-results { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 
@@ -138,17 +138,17 @@
 
     /* GENRE SCREEN */
     #genre-screen { display: none; flex-direction: column; align-items: center; padding: 20px 20px 60px; }
-    .genre-title { font-size: 24px; font-weight: 400; margin-bottom: 6px; text-align: center; margin-top: 8px; }
-    .genre-sub { font-size: 16px; color: var(--muted); margin-bottom: 28px; text-align: center; font-family: 'Caveat', cursive; }
+    .genre-title { font-size: 28px; font-weight: 400; margin-bottom: 6px; text-align: center; margin-top: 8px; }
+    .genre-sub { font-size: 20px; color: var(--muted); margin-bottom: 28px; text-align: center; font-family: 'Caveat', cursive; }
     .genre-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 360px; }
     .genre-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 18px 8px; cursor: pointer; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; color: var(--text); }
     .genre-btn:hover { border-color: var(--accent); background: var(--surface2); box-shadow: 0 0 16px var(--accent-glow); }
     .genre-icon { font-size: 28px; }
-    .genre-label { font-size: 15px; font-weight: 400; text-align: center; font-family: 'Caveat', cursive; }
+    .genre-label { font-size: 18px; font-weight: 400; text-align: center; font-family: 'Caveat', cursive; }
 
     /* Genre Treppchen (Top 3) */
     #genre-podium { margin-top: 28px; width: 100%; max-width: 360px; }
-    .podium-title { font-family: 'Caveat', cursive; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; text-align: center; }
+    .podium-title { font-family: 'Caveat', cursive; font-size: 14px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; text-align: center; }
     .podium-bars { display: flex; align-items: flex-end; justify-content: center; gap: 8px; height: 80px; }
     .podium-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
     .podium-block { width: 80px; border-radius: 8px 8px 0 0; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--muted); }
