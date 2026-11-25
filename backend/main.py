@@ -199,6 +199,19 @@ def auth_status():
     user = sp.current_user()
     return {"authenticated": True, "display_name": user["display_name"]}
 
+# ── Tagescode verify (für mobile App) ────────────────────────────────────────
+
+class CodeVerifyRequest(BaseModel):
+    code: str
+
+SECRET_CODE = os.getenv("TAGESCODE", "COSMOS")
+
+@app.post("/auth/verify")
+def verify_code(body: CodeVerifyRequest):
+    if body.code.upper() == SECRET_CODE.upper():
+        return {"success": True}
+    raise HTTPException(status_code=401, detail="Falscher Code")
+
 # ── Queue routes ──────────────────────────────────────────────────────────────
 
 def get_add_times(track_ids: list) -> dict:
